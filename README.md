@@ -1,6 +1,6 @@
 # Localify
 
-**Tu música. Tus reglas.** Reproductor web para una biblioteca de audio local, con interfaz adaptable, cola, aleatorio, repetición, favoritos y letras sincronizadas desde archivos `.lrc` externos.
+**Tu música. Tus reglas.** Reproductor web para una biblioteca de audio local, con interfaz minimalista inspirada en reproductores musicales oscuros, cola, aleatorio, repetición, favoritos y letras integradas o externas.
 
 **[Abrir Localify en GitHub Pages](https://ericsnet.github.io/Localify/)** · [Código fuente](https://github.com/ericsnet/Localify)
 
@@ -10,7 +10,7 @@
 - Búsqueda por título, artista inferido del nombre y carpeta.
 - Controles de reproducción, volumen, progreso, cola, aleatorio y repetición.
 - Favoritos guardados en el almacenamiento local del navegador.
-- Letras sincronizadas mediante archivos `.lrc` con el mismo nombre base que la canción (por ejemplo, `Cancion.mp3` y `Cancion.lrc`).
+- Lectura de letras incrustadas en metadatos compatibles de MP3 (ID3 USLT) y FLAC (comentarios Vorbis `LYRICS`/`UNSYNCEDLYRICS`), además de archivos `.lrc` externos con el mismo nombre base. Las letras con marcas de tiempo se sincronizan; las letras sin marcas se muestran como texto.
 - Diseño adaptable a móvil y escritorio.
 - Reproducción de MP3 y FLAC: primero utiliza el decodificador nativo del navegador y, si falla, intenta decodificarlos con FFmpeg WebAssembly.
 
@@ -28,7 +28,7 @@ Después abre `http://localhost:8000`.
 
 MP3 cuenta con soporte nativo en los navegadores modernos. Para FLAC y MP3, si el navegador no consigue reproducir el archivo, Localify intenta cargar bajo demanda FFmpeg WebAssembly y convertirlo a WAV PCM para reproducirlo. Esta alternativa requiere conexión a internet la primera vez, porque descarga el decodificador desde un CDN, y consume memoria adicional; la conversión a WAV puede ocupar bastante espacio en memoria. WAV, Ogg y M4A/AAC dependen de los códecs disponibles en el navegador. No se garantiza compatibilidad con todos los formatos, incluidos WMA, APE o MIDI.
 
-Esta versión no lee etiquetas ID3/Vorbis completas, carátulas embebidas ni letras incrustadas en metadatos. Las letras se leen de archivos `.lrc` externos. Los archivos importados se reproducen desde la sesión actual; la biblioteca no se restaura automáticamente al cerrar la pestaña. Los favoritos sí se guardan localmente.
+La lectura de letras incrustadas se limita a campos comunes de letras no sincronizadas en etiquetas ID3 de MP3 y comentarios Vorbis de FLAC; no cubre todas las variantes de etiquetas ni letras sincronizadas embebidas. No lee carátulas embebidas ni todos los metadatos ID3/Vorbis. Los archivos importados se reproducen desde la sesión actual; la biblioteca no se restaura automáticamente al cerrar la pestaña. Los favoritos sí se guardan localmente.
 
 ## Privacidad
 
