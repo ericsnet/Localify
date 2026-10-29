@@ -89,7 +89,7 @@ $('#next').addEventListener('click',()=>next(true));$('#prev').addEventListener(
 $('#seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentTime=audio.duration*Number(e.target.value)/1000});$('#volume').addEventListener('input',e=>audio.volume=Number(e.target.value));audio.volume=.8;audio.addEventListener('loadedmetadata',()=>{if(current()&&Number.isFinite(audio.duration)){current().duration=audio.duration;render()}updatePlayer()});audio.addEventListener('timeupdate',()=>{if(audio.duration>0)$('#seek').value=Math.round(audio.currentTime/audio.duration*1000);updatePlayer();syncLyrics()});audio.addEventListener('play',updatePlayer);audio.addEventListener('pause',updatePlayer);audio.addEventListener('ended',()=>next(false));let ffmpegInstance=null,ffmpegPromise=null;
 async function decodeFallback(t){
  if(t.fallbackTried)return;t.fallbackTried=true;
- if(!/\\.(flac|mp3)$/i.test(t.name)){ $('#status').textContent='Formato no compatible con este navegador';return}
+ if(!/\.(flac|mp3)$/i.test(t.name)){ $('#status').textContent='Formato no compatible con este navegador';return}
  $('#status').textContent='Preparando decodificador para '+base(t.name)+'…';
  try{
   if(!ffmpegPromise)ffmpegPromise=(async()=>{
@@ -112,7 +112,7 @@ async function decodeFallback(t){
   audio.src=t.url;audio.load();await audio.play();return;
  }catch(err){console.error('Localify: fallo del decodificador alternativo',err);$('#status').textContent='No se pudo decodificar. Comprueba la conexión y el archivo.'}
 }
-audio.addEventListener('error',()=>{const t=current();if(t&&!t.fallbackTried&&/\\.(flac|mp3)$/i.test(t.name)){decodeFallback(t)}else if(t)$('#status').textContent='El navegador no puede decodificar este formato'});
+audio.addEventListener('error',()=>{const t=current();if(t&&!t.fallbackTried&&/\.(flac|mp3)$/i.test(t.name)){decodeFallback(t)}else if(t)$('#status').textContent='El navegador no puede decodificar este formato'});
 $('#queue-toggle').addEventListener('click',()=>{$('#queue-drawer').hidden=!$('#queue-drawer').hidden;$('#lyrics-drawer').hidden=true});$('#lyrics-toggle').addEventListener('click',()=>{$('#lyrics-drawer').hidden=!$('#lyrics-drawer').hidden;$('#queue-drawer').hidden=true});$('#clear-queue').addEventListener('click',()=>{S.queue=[];S.index=0;renderQueue()});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}if(e.code==='Space'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('#play').click()}});
 try{S.favs=new Set(JSON.parse(localStorage.getItem('localify-favs')||'[]'))}catch{}render();
 })();
