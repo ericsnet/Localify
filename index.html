@@ -77,6 +77,110 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
  #sidebar-toggle{width:28px;height:28px}
  #lyrics-drawer.fullscreen{bottom:140px;height:calc(100vh - 140px);height:calc(100dvh - 140px)}
 }
+
+/* Responsive mobile layout */
+@media (max-width: 640px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-width: 0; font-size: 14px; }
+  .layout { display: flex; flex-direction: column; gap: 0; padding: 0 0 132px; min-height: 100dvh; }
+  .side {
+    position: relative; top: auto; width: 100%; height: auto; min-height: 0;
+    padding: 10px 12px 8px; display: block; border-right: 0; border-bottom: 1px solid #242424;
+    background: #090909; z-index: 6;
+  }
+  .brand { display: none; }
+  .side > .eyebrow, .side .bottom { display: none !important; }
+  .nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .nav button {
+    min-width: 0; min-height: 42px; padding: 10px 5px; font-size: 12px;
+    text-align: center; white-space: nowrap; border-radius: 7px; color: #aaa;
+  }
+  .nav button:before { content: none !important; }
+  .layout.sidebar-collapsed .side,
+  .layout:not(.sidebar-collapsed) .side { width: 100%; padding: 10px 12px 8px; align-items: stretch; }
+  .layout.sidebar-collapsed .brand,
+  .layout:not(.sidebar-collapsed) .brand { display: none; }
+  .layout.sidebar-collapsed .nav button { font-size: 12px; padding: 10px 5px; }
+  .main { width: 100%; min-width: 0; overflow: visible; }
+  .top { position: sticky; top: 0; height: auto; min-height: 64px; padding: 10px 12px; gap: 8px; z-index: 4; }
+  .search { flex: 1 1 auto; width: 1%; min-width: 0; padding: 12px 10px; font-size: 13px; }
+  .top .btn { flex: 0 0 42px; width: 42px; height: 42px; min-width: 42px; padding: 0; margin-left: 0; border-radius: 7px; }
+  .page { padding: 14px 12px 20px; }
+  .hero { display: block; min-height: 0; padding: 22px 18px; border-radius: 9px; }
+  .hero h1 { font-size: clamp(36px, 10vw, 48px); letter-spacing: -2.5px; margin: 18px 0 12px; }
+  .hero .desc { max-width: 100%; font-size: 12px; line-height: 1.75; }
+  .hero-art { display: none; }
+  .hero .btn { min-height: 44px; }
+  .import { display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: start; gap: 10px; margin: 16px 0 26px; padding: 14px; }
+  .import .symbol { padding: 8px; text-align: center; }
+  .import > div { min-width: 0; }
+  .import .btn { grid-column: 1 / -1; width: 100%; min-height: 44px; margin: 2px 0 0; white-space: normal; }
+  .section-head { align-items: flex-start; gap: 8px; margin: 26px 0 14px; }
+  .section-head h2 { font-size: 19px; }
+  #count { text-align: right; padding-top: 16px; }
+  .tracks { table-layout: fixed; width: 100%; }
+  .tracks th, .tracks td { padding: 9px 5px; overflow: hidden; }
+  .tracks th:first-child, .tracks td:first-child { width: 27px; }
+  .tracks th:nth-child(3), .tracks td:nth-child(3),
+  .tracks th:nth-child(4), .tracks td:nth-child(4) { display: none; }
+  .tracks th:nth-child(2), .tracks td:nth-child(2) { width: auto; }
+  .tracks th:last-child, .tracks td:last-child { width: 36px; }
+  .track { min-width: 0; gap: 8px; }
+  .track .cover { flex: 0 0 36px; width: 36px; height: 36px; }
+  .track > div:last-child { min-width: 0; }
+  .title { display: block; max-width: 100%; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  .artist { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini { min-width: 32px; min-height: 40px; padding: 6px; }
+  .features { grid-template-columns: 1fr; gap: 8px; margin-top: 24px; }
+  .feature { padding: 15px; }
+  .feature h3 { margin-top: 8px; }
+  .foot { gap: 8px; padding: 13px 12px; font-size: 8px; }
+  .foot span:first-child { max-width: 70%; }
+  .player {
+    height: 122px; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: 48px 30px 24px;
+    padding: 7px 10px max(7px, env(safe-area-inset-bottom)); gap: 0 8px;
+  }
+  .now { grid-column: 1; grid-row: 1; gap: 8px; }
+  .now .cover { width: 38px; height: 38px; }
+  .now strong { max-width: min(42vw, 190px); font-size: 11px; }
+  .now span { max-width: min(42vw, 190px); font-size: 10px; }
+  .heart { min-width: 36px; min-height: 40px; padding: 4px; }
+  .right { grid-column: 2; grid-row: 1; gap: 5px; }
+  .right .control { min-width: 40px; min-height: 42px; padding: 8px; }
+  .right input, .right .vol { display: none; }
+  .center { display: contents; }
+  .controls { grid-column: 1 / -1; grid-row: 2; height: 30px; gap: clamp(14px, 6vw, 26px); }
+  .controls .control { min-width: 36px; min-height: 34px; }
+  #play { width: 34px; height: 34px; }
+  .timeline { grid-column: 1 / -1; grid-row: 3; gap: 7px; width: 100%; font-size: 9px; }
+  .timeline input { min-width: 0; height: 16px; }
+  .drawer { right: 8px; bottom: 130px; width: calc(100vw - 16px); max-height: min(62dvh, 520px); padding: 16px; }
+  #lyrics-drawer.fullscreen {
+    inset: 0 0 122px 0; width: 100%; height: auto; max-height: none; padding: 14px;
+    border-radius: 0; overflow: hidden;
+  }
+  #lyrics-drawer.fullscreen .drawer-head h2 { font-size: 28px; }
+  #lyrics-drawer.fullscreen #lyrics-track { margin: 6px 0 12px; font-size: 12px; }
+  #lyrics-drawer.fullscreen .lyrics { gap: 18px; padding: 4vh 4px; }
+  #lyrics-drawer.fullscreen .lyric { font-size: clamp(18px, 5.5vw, 26px); line-height: 1.4; overflow-wrap: anywhere; }
+  #lyrics-drawer.fullscreen .lyric.active { font-size: clamp(22px, 6vw, 30px); }
+  #lyrics-drawer.fullscreen [data-close] { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 380px) {
+  .nav { gap: 4px; }
+  .nav button { font-size: 11px; }
+  .hero { padding: 19px 15px; }
+  .player { padding-left: 7px; padding-right: 7px; }
+  .controls { gap: 10px; }
+  .now strong, .now span { max-width: 34vw; }
+  .right { gap: 1px; }
+  .right .control { min-width: 36px; padding: 6px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  button { touch-action: manipulation; }
+  .nav button, .btn, .full, .control, .mini, .heart { -webkit-tap-highlight-color: transparent; }
+  input[type="range"] { min-height: 24px; }
+}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
