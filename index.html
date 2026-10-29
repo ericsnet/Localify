@@ -5,7 +5,7 @@
 #lyrics-drawer.fullscreen .drawer-head{flex-shrink:0}
 #lyrics-drawer.fullscreen .drawer-head h2{font-size:clamp(28px,4vw,48px);letter-spacing:-1.5px;margin:10px 0}
 #lyrics-drawer.fullscreen #lyrics-track{font-size:13px;margin:10px 0 24px}
-#lyrics-drawer.fullscreen .lyrics{flex:1;max-height:none;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:10vh 12px;text-align:center;scroll-behavior:smooth}
+#lyrics-drawer.fullscreen .lyrics{flex:1;max-height:none;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:24px;padding:10vh 12px;text-align:center;scroll-behavior:smooth}
 #lyrics-drawer.fullscreen .lyric{font-size:clamp(20px,3vw,38px);line-height:1.45;color:#555;max-width:1000px;transition:color .2s,transform .2s}
 #lyrics-drawer.fullscreen .lyric.active{font-size:clamp(24px,3.6vw,46px);color:#fff;transform:scale(1.02)}
 #lyrics-drawer.fullscreen [data-close]{font-size:32px;padding:8px 14px}
@@ -178,7 +178,7 @@ async function loadLyrics(t){S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;$(
  if(!S.lyrics.length&&t.file.name.toLowerCase().endsWith('.mp3')){const data=await readId3Lyrics(t.file);synced=data.synced;source=data.plain;t.embeddedLyrics=source}
  if(!S.lyrics.length&&synced.length)S.lyrics=synced;
  if(!S.lyrics.length&&source)S.lyrics=parseLrc(source);
- if(S.lyrics.length){S.lyricsSynced=true;$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');return}
+ if(S.lyrics.length){S.lyricsSynced=true;$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');$('#lyrics-lines').scrollTop=0;return}
  if(source.trim()){const lines=source.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);$('#lyrics-lines').innerHTML=lines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');$('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return}
  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras incrustadas ni un archivo .lrc asociado.</p>'}
 function syncLyrics(){if(!S.lyricsSynced)return;let i=-1;for(let n=0;n<S.lyrics.length;n++){if(S.lyrics[n].t<=audio.currentTime)i=n;else break}if(i!==S.lyricIndex){S.lyricIndex=i;$('.lyric[data-lyric]').forEach((e)=>e.classList.toggle('active',Number(e.dataset.lyric)===i));if(i>=0)$('[data-lyric="'+i+'"]')?.scrollIntoView({block:'center',behavior:'smooth'})}}
