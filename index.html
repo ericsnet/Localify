@@ -35,7 +35,33 @@ document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)ret
 ['import-top','side-import','hero-import','choose'].forEach(id=>$('#'+id).addEventListener('click',chooseFolder));$('#folder').addEventListener('change',e=>{importFiles(e.target.files);e.target.value=''});$('#files').addEventListener('change',e=>{importFiles(e.target.files);e.target.value=''});
 $('#search').addEventListener('input',e=>{S.search=e.target.value.trim();render()});$('#play').addEventListener('click',()=>{if(!current()){if(S.tracks[0])playTrack(S.tracks[0].id)}else if(audio.paused)audio.play().catch(()=>{});else audio.pause();updatePlayer()});
 $('#next').addEventListener('click',()=>next(true));$('#prev').addEventListener('click',()=>{if(audio.currentTime>3)audio.currentTime=0;else if(S.queue.length){S.index=(S.index-1+S.queue.length)%S.queue.length;playTrack(S.queue[S.index])}});$('#shuffle').addEventListener('click',()=>{S.shuffle=!S.shuffle;updatePlayer()});$('#repeat').addEventListener('click',()=>{S.repeat=(S.repeat+1)%3;updatePlayer()});$('#fav-current').addEventListener('click',()=>{if(current()){let id=S.current;S.favs.has(id)?S.favs.delete(id):S.favs.add(id);try{localStorage.setItem('localify-favs',JSON.stringify([...S.favs]))}catch{}render()}});
-$('#seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentTime=audio.duration*Number(e.target.value)/1000});$('#volume').addEventListener('input',e=>audio.volume=Number(e.target.value));audio.volume=.8;audio.addEventListener('loadedmetadata',()=>{if(current()&&Number.isFinite(audio.duration)){current().duration=audio.duration;render()}updatePlayer()});audio.addEventListener('timeupdate',()=>{if(audio.duration>0)$('#seek').value=Math.round(audio.currentTime/audio.duration*1000);updatePlayer();syncLyrics()});audio.addEventListener('play',updatePlayer);audio.addEventListener('pause',updatePlayer);audio.addEventListener('ended',()=>next(false));audio.addEventListener('error',()=>$('#status').textContent='El navegador no puede decodificar este formato');
+$('#seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentTime=audio.duration*Number(e.target.value)/1000});$('#volume').addEventListener('input',e=>audio.volume=Number(e.target.value));audio.volume=.8;audio.addEventListener('loadedmetadata',()=>{if(current()&&Number.isFinite(audio.duration)){current().duration=audio.duration;render()}updatePlayer()});audio.addEventListener('timeupdate',()=>{if(audio.duration>0)$('#seek').value=Math.round(audio.currentTime/audio.duration*1000);updatePlayer();syncLyrics()});audio.addEventListener('play',updatePlayer);audio.addEventListener('pause',updatePlayer);audio.addEventListener('ended',()=>next(false));let ffmpegInstance=null,ffmpegPromise=null;
+async function decodeFallback(t){
+ if(t.fallbackTried)return;t.fallbackTried=true;
+ if(!/\\.(flac|mp3)$/i.test(t.name)){ $('#status').textContent='Formato no compatible con este navegador';return}
+ $('#status').textContent='Preparando decodificador para '+base(t.name)+'…';
+ try{
+  if(!ffmpegPromise)ffmpegPromise=(async()=>{
+   const {FFmpeg}=await import('https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js');
+   const {toBlobURL}=await import('https://unpkg.com/@ffmpeg/util@0.12.2/dist/esm/index.js');
+   const f=new FFmpeg();
+   f.on('log',({message})=>{if(/error/i.test(message))console.warn('Localify FFmpeg:',message)});
+   const root='https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm';
+   await f.load({coreURL:await toBlobURL(root+'/ffmpeg-core.js','text/javascript'),wasmURL:await toBlobURL(root+'/ffmpeg-core.wasm','application/wasm')});
+   ffmpegInstance=f;return f;
+  })();
+  const f=await ffmpegPromise,ext=t.name.split('.').pop().toLowerCase(),input='input.'+ext,output='decoded.wav';
+  await f.writeFile(input,new Uint8Array(await t.file.arrayBuffer()));
+  const result=await f.exec(['-i',input,'-vn','-acodec','pcm_s16le','-ar','44100',output]);
+  if(result!==0)throw new Error('No se pudo decodificar el archivo');
+  const data=await f.readFile(output),blob=new Blob([data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)],{type:'audio/wav'});
+  if(t.fallbackUrl)URL.revokeObjectURL(t.fallbackUrl);
+  t.fallbackUrl=URL.createObjectURL(blob);t.url=t.fallbackUrl;
+  $('#status').textContent='Audio decodificado para reproducción';
+  audio.src=t.url;audio.load();await audio.play();return;
+ }catch(err){console.error('Localify: fallo del decodificador alternativo',err);$('#status').textContent='No se pudo decodificar. Comprueba la conexión y el archivo.'}
+}
+audio.addEventListener('error',()=>{const t=current();if(t&&!t.fallbackTried&&/\\.(flac|mp3)$/i.test(t.name)){decodeFallback(t)}else if(t)$('#status').textContent='El navegador no puede decodificar este formato'});
 $('#queue-toggle').addEventListener('click',()=>{$('#queue-drawer').hidden=!$('#queue-drawer').hidden;$('#lyrics-drawer').hidden=true});$('#lyrics-toggle').addEventListener('click',()=>{$('#lyrics-drawer').hidden=!$('#lyrics-drawer').hidden;$('#queue-drawer').hidden=true});$('#clear-queue').addEventListener('click',()=>{S.queue=[];S.index=0;renderQueue()});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}if(e.code==='Space'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('#play').click()}});
 try{S.favs=new Set(JSON.parse(localStorage.getItem('localify-favs')||'[]'))}catch{}render();
 })();
