@@ -141,7 +141,7 @@ async function readId3Lyrics(file){
   }
   if((id==='SYLT'||(ver===2&&id==='SLT'))&&frame.length>=7&&!synced.length){
    const enc=frame[0],stampFormat=frame[4],contentType=frame[5];let q=6;
-   if(contentType>=0&&contentType<=8){
+   if(contentType===1||contentType===2){
     const term=findTextTerminator(frame,q,enc);q=Math.min(frame.length,term+(enc===1||enc===2?2:1));
     while(q<frame.length){
      const textStart=q,tend=findTextTerminator(frame,q,enc);if(tend>=frame.length)break;
