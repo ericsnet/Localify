@@ -65,18 +65,55 @@ async function embeddedLyrics(file){
   const b=new Uint8Array(await file.arrayBuffer()),name=file.name.toLowerCase();
   if(name.endsWith('.mp3')&&b.length>10&&String.fromCharCode(...b.slice(0,3))==='ID3'){
    const ver=b[3],end=Math.min(b.length,10+synchsafe(b,6));let p=10;
-   while(p+10<=end){let id=String.fromCharCode(...b.slice(p,p+4));if(!id.trim()||id.charCodeAt(0)===0)break;let size=ver===4?synchsafe(b,p+4):((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7]);if(size<=0||p+10+size>end)break;
-    if(id==='USLT'||(ver===2&&id==='ULT')){let f=b.slice(p+(ver===2?6:10),p+(ver===2?6:10)+size),enc=f[0],start=4;while(start<f.length&&f[start]!==0)start++;start++;let lyric=decodeText(f.slice(start),enc).replace(/\u0000/g,'').trim();if(lyric)return lyric}
-    p+= (ver===2?6:10)+size;
+   while(p+(ver===2?6:10)<=end){
+    const header=ver===2?6:10,id=String.fromCharCode(...b.slice(p,p+(ver===2?3:4)));
+    if(!id.trim()||id.charCodeAt(0)===0)break;
+    const size=ver===2?((b[p+3]<<16)|(b[p+4]<<8)|b[p+5]):(ver===4?synchsafe(b,p+4):((b[p+4]<<24)|(b[p+5]<<16)|(b[p+6]<<8)|b[p+7]));
+    if(size<=0||p+header+size>end)break;
+    if(id==='USLT'||(ver===2&&id==='ULT')){
+     let f=b.slice(p+header,p+header+size);
+     if(f.length>=4){
+      const enc=f[0],descStart=4;let textStart=descStart;
+      if(enc===1||enc===2){
+       while(textStart+1<f.length&&(f[textStart]!==0||f[textStart+1]!==0))textStart+=2;
+       textStart=Math.min(f.length,textStart+2);
+      }else{
+       while(textStart<f.length&&f[textStart]!==0)textStart++;
+       textStart=Math.min(f.length,textStart+1);
+      }
+      const lyric=decodeText(f.slice(textStart),enc).replace(/\u0000/g,'').trim();
+      if(lyric)return lyric;
+     }
+    }
+    p+=header+size;
    }
   }
   if(name.endsWith('.flac')&&String.fromCharCode(...b.slice(0,4))==='fLaC'){
-   let p=4;while(p+4<=b.length){let head=b[p],type=head&127,size=(b[p+1]<<16)|(b[p+2]<<8)|b[p+3],start=p+4,end=start+size;if(end>b.length)break;
-    if(type===4&&size>=8){let q=start;const read32=()=>{let n=(b[q]<<24)|(b[q+1]<<16)|(b[q+2]<<8)|b[q+3];q+=4;return n};let vendor=read32();q+=vendor;if(q+4>end)break;let count=read32();for(let i=0;i<count&&q+4<=end;i++){let n=read32();if(n<0||q+n>end)break;let pair=new TextDecoder().decode(b.slice(q,q+n));q+=n;let ix=pair.indexOf('=');if(ix>0&&/^(lyrics|unsyncedlyrics|unsynchronised lyrics)$/i.test(pair.slice(0,ix))){let value=pair.slice(ix+1).trim();if(value)return value}}}
+   let p=4;
+   while(p+4<=b.length){
+    const head=b[p],type=head&127,size=(b[p+1]<<16)|(b[p+2]<<8)|b[p+3],start=p+4,end=start+size;
+    if(end>b.length)break;
+    if(type===4&&size>=8){
+     let q=start;
+     const read32=()=>{const n=(b[q]*0x1000000)+(b[q+1]<<16)+(b[q+2]<<8)+b[q+3];q+=4;return n};
+     const vendor=read32();q+=vendor;
+     if(q+4<=end){
+      const count=read32();
+      for(let i=0;i<count&&q+4<=end;i++){
+       const n=read32();if(n<0||q+n>end)break;
+       const pair=new TextDecoder('utf-8').decode(b.slice(q,q+n));q+=n;
+       const ix=pair.indexOf('=');
+       if(ix>0&&/^(lyrics|unsyncedlyrics|unsynchronised lyrics)$/i.test(pair.slice(0,ix))){
+        const value=pair.slice(ix+1).trim();if(value)return value;
+       }
+      }
+     }
+    }
     p=end;if(head&128)break;
    }
   }
- }catch(e){console.warn('No se pudieron leer las letras incrustadas',e)}return '';
+ }catch(e){console.warn('No se pudieron leer las letras incrustadas',e)}
+ return '';
 }
 function parseLrc(s){let a=[],off=Number((s.match(/\[offset:([+-]?\d+)\]/i)||[])[1]||0)/1000;for(let line of s.split(/\r?\n/)){let tags=[...line.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g)],txt=line.replace(/\[[^\]]+\]/g,'').trim();for(let m of tags)if(txt)a.push({t:Number(m[1])*60+Number(m[2])+Number((m[3]||'0').padEnd(3,'0').slice(0,3))/1000+off,txt})}return a.sort((a,b)=>a.t-b.t)}
 async function loadLyrics(t){S.lyrics=[];S.lyricIndex=-1;$('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';$('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}let source=t.lrc||t.embeddedLyrics||'';if(!source){source=await embeddedLyrics(t.file);t.embeddedLyrics=source}S.lyrics=parseLrc(source);if(S.lyrics.length){$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');return}if(source.trim()){let lines=source.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);$('#lyrics-lines').innerHTML=lines.map(line=>'<div class="lyric plain-lyric">'+esc(line)+'</div>').join('');return}$('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras incrustadas ni un archivo .lrc asociado. La lectura de letras incrustadas depende de los metadatos del archivo.</p>'}
