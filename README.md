@@ -12,6 +12,7 @@
 - Favoritos guardados en el almacenamiento local del navegador.
 - Letras sincronizadas mediante archivos `.lrc` con el mismo nombre base que la canción (por ejemplo, `Cancion.mp3` y `Cancion.lrc`).
 - Diseño adaptable a móvil y escritorio.
+- Reproducción de MP3 y FLAC: primero utiliza el decodificador nativo del navegador y, si falla, intenta decodificarlos con FFmpeg WebAssembly.
 
 ## Ejecutar localmente
 
@@ -25,7 +26,7 @@ Después abre `http://localhost:8000`.
 
 ## Compatibilidad y limitaciones
 
-La reproducción depende de los códecs disponibles en el navegador y el sistema operativo. MP3, WAV, Ogg y M4A/AAC suelen funcionar en combinaciones habituales; no se garantiza compatibilidad con todos los formatos, y FLAC, WMA, APE o MIDI pueden variar según navegador. No se incluye decodificador universal.
+MP3 cuenta con soporte nativo en los navegadores modernos. Para FLAC y MP3, si el navegador no consigue reproducir el archivo, Localify intenta cargar bajo demanda FFmpeg WebAssembly y convertirlo a WAV PCM para reproducirlo. Esta alternativa requiere conexión a internet la primera vez, porque descarga el decodificador desde un CDN, y consume memoria adicional; la conversión a WAV puede ocupar bastante espacio en memoria. WAV, Ogg y M4A/AAC dependen de los códecs disponibles en el navegador. No se garantiza compatibilidad con todos los formatos, incluidos WMA, APE o MIDI.
 
 Esta versión no lee etiquetas ID3/Vorbis completas, carátulas embebidas ni letras incrustadas en metadatos. Las letras se leen de archivos `.lrc` externos. Los archivos importados se reproducen desde la sesión actual; la biblioteca no se restaura automáticamente al cerrar la pestaña. Los favoritos sí se guardan localmente.
 
