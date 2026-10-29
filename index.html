@@ -115,7 +115,7 @@ async function readId3Lyrics(file){
   }
   if((id==='SYLT'||(ver===2&&id==='SLT'))&&frame.length>=7&&!synced.length){
    const enc=frame[0],stampFormat=frame[4],contentType=frame[5];let q=6;
-   if(contentType===1||contentType===2){
+   if(contentType>=0&&contentType<=8){
     const term=findTextTerminator(frame,q,enc);q=Math.min(frame.length,term+(enc===1||enc===2?2:1));
     while(q<frame.length){
      const textStart=q,tend=findTextTerminator(frame,q,enc);if(tend>=frame.length)break;
@@ -155,7 +155,7 @@ async function loadLyrics(t){S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;$(
  if(S.lyrics.length){S.lyricsSynced=true;$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');return}
  if(source.trim()){const lines=source.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);$('#lyrics-lines').innerHTML=lines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');$('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return}
  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras incrustadas ni un archivo .lrc asociado.</p>'}
-function syncLyrics(){if(!S.lyricsSynced)return;let i=-1;for(let n=0;n<S.lyrics.length;n++){if(S.lyrics[n].t<=audio.currentTime)i=n;else break}if(i!==S.lyricIndex){S.lyricIndex=i;$('.lyric').forEach((e,n)=>e.classList.toggle('active',n===i));if(i>=0)$('[data-lyric="'+i+'"]')?.scrollIntoView({block:'center',behavior:'smooth'})}}
+function syncLyrics(){if(!S.lyricsSynced)return;let i=-1;for(let n=0;n<S.lyrics.length;n++){if(S.lyrics[n].t<=audio.currentTime)i=n;else break}if(i!==S.lyricIndex){S.lyricIndex=i;$('.lyric[data-lyric]').forEach((e)=>e.classList.toggle('active',Number(e.dataset.lyric)===i));if(i>=0)$('[data-lyric="'+i+'"]')?.scrollIntoView({block:'center',behavior:'smooth'})}}
 function renderQueue(){$('#queue-list').innerHTML=S.queue.map((id,i)=>{let t=track(id);return t?'<div class="queue-row"><button data-qplay="'+i+'">'+(id===S.current?'♫':'▶')+'</button><div>'+esc(t.title)+'<small>'+esc(t.artist)+'</small></div><button data-qremove="'+i+'">×</button></div>':''}).join('')||'<p class="muted">La cola está vacía.</p>'}
 document.addEventListener('click',e=>{let b=e.target.closest('button');if(!b)return;if(b.dataset.view){S.view=b.dataset.view;render();return}if(b.dataset.track){playTrack(b.dataset.track);return}if(b.dataset.fav){let id=b.dataset.fav;S.favs.has(id)?S.favs.delete(id):S.favs.add(id);try{localStorage.setItem('localify-favs',JSON.stringify([...S.favs]))}catch{}render();return}if(b.dataset.add){if(!S.queue.includes(b.dataset.add))S.queue.push(b.dataset.add);renderQueue();$('#status').textContent='Añadida a la cola';return}if(b.dataset.qplay!==undefined){playTrack(S.queue[Number(b.dataset.qplay)],true);return}if(b.dataset.qremove!==undefined){let i=Number(b.dataset.qremove);S.queue.splice(i,1);if(i<S.index)S.index--;renderQueue();return}if(b.dataset.close)$('#'+b.dataset.close).hidden=true});
 ['import-top','side-import','hero-import','choose'].forEach(id=>$('#'+id).addEventListener('click',chooseFolder));$('#folder').addEventListener('change',e=>{importFiles(e.target.files);e.target.value=''});$('#files').addEventListener('change',e=>{importFiles(e.target.files);e.target.value=''});
