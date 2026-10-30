@@ -332,6 +332,45 @@ async function embeddedSyncedLyrics(file){
  try{if(file.name.toLowerCase().endsWith('.mp3'))return (await readId3Lyrics(file)).synced}catch(e){console.warn('No se pudieron leer las letras sincronizadas',e)}return [];
 }
 function parseLrc(s){let a=[],off=Number((s.match(/\[offset:([+-]?\d+)\]/i)||[])[1]||0)/1000;for(let line of s.split(/\r?\n/)){let tags=[...line.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g)],txt=line.replace(/\[[^\]]+\]/g,'').trim();for(let m of tags)if(txt)a.push({t:Number(m[1])*60+Number(m[2])+Number((m[3]||'0').padEnd(3,'0').slice(0,3))/1000+off,txt})}return a.sort((a,b)=>a.t-b.t)}
+function parseTTML(ttml){
+ try{
+  const xml=new DOMParser().parseFromString(ttml,'application/xml');
+  if(xml.querySelector('parsererror'))return [];
+  const seconds=v=>{if(!v)return NaN;const x=v.trim();if(/^\d+(?:\.\d+)?s$/.test(x))return parseFloat(x);if(/^\d+(?:\.\d+)?ms$/.test(x))return parseFloat(x)/1000;const p=x.split(':').map(Number);if(p.some(n=>!Number.isFinite(n)))return NaN;if(p.length===3)return p[0]*3600+p[1]*60+p[2];if(p.length===2)return p[0]*60+p[1];return NaN};
+  const out=[];
+  xml.querySelectorAll('p').forEach(p=>{
+   const spans=[...p.querySelectorAll('span')].filter(n=>n.textContent.trim());
+   if(spans.length){for(const span of spans){const t=seconds(span.getAttribute('begin'))??seconds(p.getAttribute('begin'));if(Number.isFinite(t))out.push({t,txt:span.textContent.replace(/\s+/g,' ').trim()})}}
+   else{const t=seconds(p.getAttribute('begin'));const txt=p.textContent.replace(/\s+/g,' ').trim();if(Number.isFinite(t)&&txt)out.push({t,txt})}
+  });
+  return out.sort((a,b)=>a.t-b.t);
+ }catch(e){console.warn('No se pudo interpretar TTML',e);return []}
+}
+async function fetchSyncedLyrics(t){
+ const duration=Math.round(Number(t.duration)||0),artist=t.artist&&t.artist!=='Artista desconocido'?t.artist:'';
+ const params=new URLSearchParams({s:t.title||base(t.name),a:artist,al:t.album||'',d:String(duration)});
+ const request=async url=>{const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)return null;const type=res.headers.get('content-type')||'';if(!type.includes('json'))return null;return await res.json()};
+ // Better Lyrics: primero la respuesta TTML cacheada (sin API key).
+ try{
+  const data=await request('https://api.betterlyrics.org/getLyrics?'+params.toString());
+  if(data?.ttml){const lines=parseTTML(data.ttml);if(lines.length)return{lines,kind:'Better Lyrics · sincronización por sílabas'}}
+ }catch(e){console.warn('Better Lyrics no disponible:',e)}
+ // Endpoint Kugou de Better Lyrics: LRC por líneas y sin API key incluso en consultas no cacheadas.
+ try{
+  const data=await request('https://api.betterlyrics.org/kugou/getLyrics?'+params.toString());
+  const raw=data?.lyrics||data?.lrc||'';
+  const lines=parseLrc(raw);if(lines.length)return{lines,kind:'Better Lyrics · sincronización por líneas'};
+ }catch(e){console.warn('Better Lyrics (Kugou) no disponible:',e)}
+ // Alternativa: LRCLIB, API pública sin clave.
+ try{
+  const lr=new URLSearchParams({artist_name:artist,track_name:t.title||base(t.name),album_name:t.album||'',duration:String(duration)});
+  const data=await request('https://lrclib.net/api/get?'+lr.toString());
+  const lines=parseLrc(data?.syncedLyrics||'');
+  if(lines.length)return{lines,kind:'LRCLIB · sincronización por líneas'};
+  if(data?.plainLyrics)return{plain:data.plainLyrics,kind:'LRCLIB · letras sin sincronizar'};
+ }catch(e){console.warn('LRCLIB no disponible:',e)}
+ return null;
+}
 async function loadLyrics(t){
  S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;$('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';$('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
  if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}
@@ -343,9 +382,16 @@ async function loadLyrics(t){
  if(S.current!==t.id)return;
  if(!S.lyrics.length&&synced.length)S.lyrics=synced;
  if(!S.lyrics.length&&source)S.lyrics=parseLrc(source);
- if(S.lyrics.length){S.lyricsSynced=true;$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');$('#lyrics-lines').scrollTop=0;syncLyrics();return}
+ if(!S.lyrics.length&&!source.trim()){
+  $('#lyrics-lines').innerHTML='<p class="muted">Consultando Better Lyrics y LRCLIB…</p>';
+  const remote=await fetchSyncedLyrics(t);
+  if(S.current!==t.id)return;
+  if(remote?.lines?.length){S.lyrics=remote.lines;S.lyricsSynced=true;t.remoteLyrics=remote.lines;t.remoteLyricsSource=remote.kind}
+  else if(remote?.plain){source=remote.plain;t.embeddedLyrics=source;t.remoteLyricsSource=remote.kind}
+ }
+ if(S.lyrics.length){S.lyricsSynced=true;$('#lyrics-track').textContent=t.title+' · '+t.artist+(t.remoteLyricsSource?' · '+t.remoteLyricsSource:'');$('#lyrics-lines').innerHTML=S.lyrics.map((l,i)=>'<div class="lyric" data-lyric="'+i+'">'+esc(l.txt)+'</div>').join('');$('#lyrics-lines').scrollTop=0;syncLyrics();return}
  if(source.trim()){const lines=source.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);$('#lyrics-lines').innerHTML=lines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');$('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return}
- $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras incrustadas ni un archivo .lrc asociado.</p>'
+ $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras sincronizadas ni normales. Comprueba el título y el artista de la canción.</p>'
 }
 function syncLyrics(){if(!S.lyricsSynced)return;let i=-1;for(let n=0;n<S.lyrics.length;n++){if(S.lyrics[n].t<=audio.currentTime)i=n;else break}if(i!==S.lyricIndex){S.lyricIndex=i;$('.lyric[data-lyric]').forEach((e)=>e.classList.toggle('active',Number(e.dataset.lyric)===i));if(i>=0)$('[data-lyric="'+i+'"]')?.scrollIntoView({block:'center',behavior:'smooth'})}}
 function renderQueue(){$('#queue-list').innerHTML=S.queue.map((id,i)=>{let t=track(id);return t?'<div class="queue-row"><button data-qplay="'+i+'">'+(id===S.current?'♫':'▶')+'</button><div>'+esc(t.title)+'<small>'+esc(t.artist)+'</small></div><button data-qremove="'+i+'">×</button></div>':''}).join('')||'<p class="muted">La cola está vacía.</p>'}
