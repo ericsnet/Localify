@@ -416,7 +416,29 @@ async function fetchSyncedLyrics(t){
    if(best.plainLyrics)return{plain:best.plainLyrics,kind:'LRCLIB · búsqueda ampliada'};
   }
  }catch(e){console.warn('LRCLIB búsqueda ampliada:',e)}
- // 4) Better Lyrics como proveedor alternativo.
+ // 4) SyncLRC: proveedor independiente con búsqueda por título/artista y LRC.
+ try{
+  const params=new URLSearchParams({track:title,artist:artist||'Unknown',type:'synced'});
+  if(album)params.set('album',album);
+  if(duration>0&&duration<=3600)params.set('duration',String(duration));
+  const data=await request('https://api.synclrc.dev/lyrics?'+params.toString());
+  const lines=parseLrc(data?.synced||data?.lyrics||data?.lrc||'');
+  if(lines.length)return{lines,plain:data?.plain||'',kind:'SyncLRC · letras sincronizadas'};
+  if(data?.plain)return{plain:data.plain,kind:'SyncLRC · texto plano'};
+ }catch(e){console.warn('SyncLRC no disponible:',e)}
+ // 5) Karalyr: API compatible con LRCLIB, especializada en sincronización por palabra.
+ if(artist){
+  try{
+   const params=new URLSearchParams({track_name:title,artist_name:artist});
+   if(album)params.set('album_name',album);
+   if(duration>0&&duration<=3600)params.set('duration',String(duration));
+   const data=await request('https://karalyr.com/api/get?'+params.toString());
+   const lines=parseLrc(data?.syncedLyrics||'');
+   if(lines.length)return{lines,plain:data?.plainLyrics||'',kind:'Karalyr · sincronización karaoke'};
+   if(data?.plainLyrics)return{plain:data.plainLyrics,kind:'Karalyr · texto plano'};
+  }catch(e){console.warn('Karalyr no disponible:',e)}
+ }
+ // 6) Better Lyrics como proveedor alternativo.
  const params=new URLSearchParams({s:title,a:artist,al:album,d:String(duration)});
  try{
   const data=await request('https://api.betterlyrics.org/getLyrics?'+params.toString());
