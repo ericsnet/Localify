@@ -182,6 +182,13 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
   .nav button, .btn, .full, .control, .mini, .heart { -webkit-tap-highlight-color: transparent; }
   input[type="range"] { min-height: 24px; }
 }
+
+.lyrics-source{display:inline-flex;align-items:center;gap:8px;width:max-content;max-width:100%;margin:0 0 14px;padding:8px 11px;border:1px solid #383838;border-radius:7px;background:#171717;color:#aaa;font-size:11px;line-height:1.3}
+.lyrics-source strong{color:#f2f2f2;font-size:12px}.lyrics-source .source-state{color:#888}
+.source-dot{width:7px;height:7px;border-radius:50%;background:#aaa;flex:0 0 auto}
+.lyrics-source.is-searching .source-dot{background:#e2c46b;box-shadow:0 0 0 3px #e2c46b22;animation:source-pulse 1s infinite}
+.lyrics-source.is-found .source-dot{background:#8fd18b}.lyrics-source.is-local .source-dot{background:#8bb8e8}.lyrics-source.is-error .source-dot{background:#e58b8b}
+@keyframes source-pulse{50%{opacity:.35}}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
@@ -189,7 +196,7 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 <section id="library-section" class="hide"><div class="section-head"><div><p class="eyebrow">TU COLECCIÓN</p><h2 id="list-title">Tu biblioteca musical</h2></div><span class="muted small" id="count">0 canciones</span></div><table class="tracks"><thead><tr><th>#</th><th>TÍTULO</th><th>CARPETA</th><th>◷</th><th></th></tr></thead><tbody id="tracks"></tbody></table></section>
 <section class="features" id="features"><article class="feature"><span class="accent">♫</span><h3>Letras integradas</h3><p>Lee letras incrustadas en los metadatos compatibles, además de archivos .lrc externos.</p></article><article class="feature"><span class="accent">↝</span><h3>Tu forma de escuchar</h3><p>Cola editable, reproducción aleatoria, repetición y favoritos.</p></article><article class="feature"><span class="accent">▥</span><h3>Visualizador</h3><p>Una animación de onda acompaña tu sesión de música.</p></article></section></div><footer class="foot"><span>LOCALIFY · TU BIBLIOTECA, EN LOCAL</span><button id="proxy-test" type="button">Probar compatibilidad</button><span id="status">Esperando tu música</span></footer></main></div>
 <footer class="player"><div class="now"><div class="cover" id="now-cover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"/></svg></div><div><strong id="now-title">Elige una canción</strong><span id="now-artist">Tu música te espera</span></div><button id="fav-current" class="heart" title="Favorito">♡</button></div><div class="center"><div class="controls"><button class="control" id="shuffle" title="Aleatorio">⤨</button><button class="control transport-skip" id="prev" title="Anterior" aria-label="Canción anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 6 9 12l10 6V6Z"/></svg></button><button id="play">▶</button><button class="control transport-skip" id="next" title="Siguiente" aria-label="Canción siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 6l10 6-10 6V6Z"/></svg></button><button class="control" id="repeat" title="Repetir">↻</button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="duration">0:00</span></div></div><div class="right"><button class="control" id="lyrics-toggle" title="Letras" aria-label="Mostrar letras"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8"/></svg></button><button class="control" id="queue-toggle" title="Cola" aria-label="Mostrar cola"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button><span class="vol" aria-label="Volumen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></span><input id="volume" type="range" min="0" max="1" step=".01" value=".8"></div></footer>
-<section class="drawer" id="queue-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">A CONTINUACIÓN</p><h2>Tu cola</h2></div><button data-close="queue-drawer">×</button></div><div id="queue-list"></div></section><section class="drawer" id="lyrics-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">SIGUE EL RITMO</p><h2>Letras</h2></div><button data-close="lyrics-drawer">×</button></div><p class="muted small" id="lyrics-track">Selecciona una canción</p><div class="lyrics" id="lyrics-lines"><p class="muted">Importa un archivo .lrc para mostrar letras sincronizadas.</p></div></section>
+<section class="drawer" id="queue-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">A CONTINUACIÓN</p><h2>Tu cola</h2></div><button data-close="queue-drawer">×</button></div><div id="queue-list"></div></section><section class="drawer" id="lyrics-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">SIGUE EL RITMO</p><h2>Letras</h2></div><button data-close="lyrics-drawer">×</button></div><p class="muted small" id="lyrics-track">Selecciona una canción</p><div id="lyrics-source" class="lyrics-source" hidden aria-live="polite"></div><div class="lyrics" id="lyrics-lines"><p class="muted">Importa un archivo .lrc para mostrar letras sincronizadas.</p></div></section>
 <input id="folder" type="file" webkitdirectory directory multiple hidden><input id="files" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.opus,.wav,.m4a,.aac,.wma,.aiff,.ape,.alac,.mid,.midi,.lrc" hidden><audio id="audio" preload="auto"></audio>
 <script>
 (()=>{'use strict';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],audio=$('#audio');
@@ -354,11 +361,19 @@ function parseTTML(ttml){
   return out.sort((a,b)=>a.t-b.t);
  }catch(e){console.warn('No se pudo interpretar TTML',e);return []}
 }
+function setLyricsSource(name,state='searching'){
+ const el=$('#lyrics-source');if(!el)return;
+ const labels={searching:'Consultando',found:'Fuente utilizada',local:'Archivo local',error:'Error de conexión'};
+ el.hidden=false;el.className='lyrics-source is-'+state;
+ el.innerHTML='<span class="source-dot" aria-hidden="true"></span><span class="source-state">'+esc(labels[state]||labels.searching)+'</span><strong>'+esc(name)+'</strong>';
+}
+function clearLyricsSource(){const el=$('#lyrics-source');if(el){el.hidden=true;el.textContent='';}}
 async function fetchSyncedLyrics(t){
  const title=String(t.title||base(t.name)||'').replace(/\.[^.]+$/,'').trim();
  const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
+ setLyricsSource('LRCLIB');
  const request=async(url)=>{
   const res=await fetch(url,{headers:{Accept:'application/json'}});
   if(res.status===404)return null;
@@ -454,6 +469,7 @@ async function fetchSyncedLyrics(t){
 
  // Segundo proveedor: lrc.red. Su API permite buscar por título/artista y después
  // descargar LRC o TTML usando el ISRC. Se usa como fallback, no como fuente primaria.
+ setLyricsSource('lrc.red');
  try{
   const query=[title,artist].filter(Boolean).join(' ').trim();
   if(query){
@@ -489,6 +505,7 @@ async function fetchSyncedLyrics(t){
 
  // Tercer fallback: lyrics.ovh devuelve letras en texto plano (sin sincronización).
  // Es útil cuando no existe un LRC/TTML para la canción.
+ setLyricsSource('lyrics.ovh');
  try{
   if(artist&&title){
    const url='https://api.lyrics.ovh/v1/'+encodeURIComponent(artist)+'/'+encodeURIComponent(title);
@@ -506,13 +523,14 @@ function artistQueriesForSearch(artist,variants){
  return [...new Set([artist,...variants].filter(Boolean))];
 }
 async function loadLyrics(t){
- S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;
+ S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;clearLyricsSource();
  $('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';
  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
  if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}
  let plain=String(t.lrc||t.embeddedLyrics||'');
  let lines=parseLrc(plain);
  let embedded=Array.isArray(t.embeddedSynced)?t.embeddedSynced:[];
+ if(lines.length||embedded.length||plain.trim())setLyricsSource(t.lrc?'Archivo .LRC':'Metadatos del archivo','local');
  if(!lines.length&&embedded.length)lines=embedded;
  if(!lines.length&&/\.mp3$/i.test(t.name)&&!t.embeddedSynced){
   try{
@@ -526,17 +544,19 @@ async function loadLyrics(t){
  if(S.current!==t.id)return;
  // Si solo hay texto plano o un LRC no interpretable, seguir buscando una versión sincronizada.
  if(!lines.length){
-  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras sincronizadas en LRCLIB…</p>';
+  setLyricsSource('LRCLIB');
+  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras sincronizadas…</p>';
   try{
    const remote=await fetchSyncedLyrics(t);
    if(S.current!==t.id)return;
    if(remote?.lines?.length){
     lines=remote.lines;t.remoteLyrics=lines;t.remoteLyricsSource=remote.kind;t.remoteLyricsUrl=remote.url||'';
+    setLyricsSource(remote.kind,'found');
     if(remote.plain&&!plain)plain=remote.plain;
    }else if(remote?.plain&&!plain){
-    plain=remote.plain;t.remoteLyricsSource=remote.kind;
+    plain=remote.plain;t.remoteLyricsSource=remote.kind;setLyricsSource(remote.kind,'found');
    }
-  }catch(e){console.error('Error buscando letras:',e);$('#lyrics-lines').innerHTML='<p class="muted">No se pudo conectar con los proveedores de letras. Comprueba la conexión e inténtalo de nuevo.</p>';return}
+  }catch(e){console.error('Error buscando letras:',e);setLyricsSource('Proveedores de letras','error');$('#lyrics-lines').innerHTML='<p class="muted">No se pudo conectar con los proveedores de letras. Comprueba la conexión e inténtalo de nuevo.</p>';return}
  }
  if(S.current!==t.id)return;
  if(lines.length){
@@ -552,6 +572,7 @@ async function loadLyrics(t){
  }
  if(plain.trim()){
   const textLines=plain.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
+  if(t.remoteLyricsSource)setLyricsSource(t.remoteLyricsSource,'found');
   $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
   $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return;
  }
