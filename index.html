@@ -537,9 +537,5 @@ $('#lyrics-toggle').addEventListener('click',()=>{const d=$('#lyrics-drawer');d.
 try{S.favs=new Set(JSON.parse(localStorage.getItem('localify-favs')||'[]'))}catch{}if(proxyMode)$('#status').textContent='Modo proxy detectado · algunas funciones avanzadas pueden estar limitadas';render();
 })();
 </script>
-<section id="live-update-notice" role="status" aria-live="polite" style="position:fixed;z-index:99999;top:12px;left:12px;right:12px;margin:0 auto;padding:12px 16px;max-width:900px;border:2px solid #4b8cff;border-radius:12px;background:#10264a;color:#fff;font:inherit;text-align:center;box-shadow:0 8px 28px rgba(0,0,0,.35);">
-  <strong>Aviso de actualización en directo</strong>
-  <p style="margin:6px 0 0;">Si puedes ver este mensaje en la página de Workers, significa que la web está recibiendo y mostrando las actualizaciones en directo.</p>
-</section>
 
 </body></html>
