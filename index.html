@@ -486,6 +486,20 @@ async function fetchSyncedLyrics(t){
    }else if(res.status===429){console.warn('lrc.red: límite de peticiones alcanzado')}
   }
  }catch(e){console.warn('lrc.red no disponible (posible error de red/CORS):',e)}
+
+ // Tercer fallback: lyrics.ovh devuelve letras en texto plano (sin sincronización).
+ // Es útil cuando no existe un LRC/TTML para la canción.
+ try{
+  if(artist&&title){
+   const url='https://api.lyrics.ovh/v1/'+encodeURIComponent(artist)+'/'+encodeURIComponent(title);
+   const res=await fetch(url,{headers:{Accept:'application/json'}});
+   if(res.ok){
+    const data=await res.json();
+    if(typeof data.lyrics==='string'&&data.lyrics.trim())
+     return{plain:data.lyrics.trim(),kind:'lyrics.ovh'};
+   }
+  }
+ }catch(e){console.warn('lyrics.ovh no disponible:',e)}
  return null;
 }
 function artistQueriesForSearch(artist,variants){
