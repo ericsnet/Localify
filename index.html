@@ -189,28 +189,6 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 .lyrics-source.is-searching .source-dot{background:#e2c46b;box-shadow:0 0 0 3px #e2c46b22;animation:source-pulse 1s infinite}
 .lyrics-source.is-found .source-dot{background:#8fd18b}.lyrics-source.is-local .source-dot{background:#8bb8e8}.lyrics-source.is-error .source-dot,.lyrics-source.is-not-found .source-dot{background:#e58b8b}
 @keyframes source-pulse{50%{opacity:.35}}
-
-/* Karaoke palabra por palabra: las palabras futuras no heredan el blanco de la línea activa. */
-.lyric.active .lyric-word{
-  display:inline-block;
-  color:#777;
-  opacity:.72;
-  text-shadow:none;
-  transition:color .22s ease,opacity .22s ease,text-shadow .22s ease,transform .22s ease;
-}
-.lyric.active .lyric-word.active-word{
-  color:var(--accent);
-  opacity:1;
-  text-shadow:0 0 8px #c7fb6266,0 0 18px #c7fb6244;
-  animation:lyric-word-arrive .24s cubic-bezier(.2,.75,.25,1) both;
-}
-@keyframes lyric-word-arrive{
-  from{transform:translateY(3px) scale(.97);filter:brightness(.85)}
-  to{transform:translateY(0) scale(1);filter:brightness(1)}
-}
-@media(prefers-reduced-motion:reduce){
-  .lyric.active .lyric-word,.lyric.active .lyric-word.active-word{transition:none;animation:none}
-}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
@@ -756,7 +734,7 @@ async function decodeFallback(t){
  }catch(err){console.error('Localify: fallo del decodificador alternativo',err);$('#status').textContent='No se pudo decodificar. Comprueba la conexión y el archivo.'}
 }
 async function retryTrackAsDataUrl(t){if(!t?.file||t.dataUrlTried)return false;t.dataUrlTried=true;return await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>{if(typeof reader.result!=='string'){resolve(false);return}t.url=reader.result;audio.src=t.url;audio.load();audio.play().then(()=>{$('#status').textContent='Reproducción recuperada usando una URL de datos compatible con el proxy';resolve(true)}).catch(()=>resolve(false))};reader.onerror=()=>resolve(false);reader.readAsDataURL(t.file)})}audio.addEventListener('error',async()=>{const t=current();if(t?.isProxyTest)return;if(t?.file&&!t.dataUrlTried){const recovered=await retryTrackAsDataUrl(t);if(recovered)return}if(t&&!t.fallbackTried&&/\.(flac|mp3)$/i.test(t.name)){decodeFallback(t)}else if(t)$('#status').textContent='No se pudo reproducir este formato. El proxy puede estar bloqueando blob: y también la alternativa de datos.'});
-$('#queue-toggle').addEventListener('click',()=>{$('#queue-drawer').hidden=!$('#queue-drawer').hidden;$('#lyrics-drawer').hidden=true});$('#volume').addEventListener('input',e=>audio.volume=Number(e.target.value));
+$('#queue-toggle').addEventListener('click',()=>{$('#queue-drawer').hidden=!$('#queue-drawer').hidden;$('#lyrics-drawer').hidden=true});
 $('#lyrics-toggle').addEventListener('click',()=>{const d=$('#lyrics-drawer');d.hidden=!d.hidden;d.classList.toggle('fullscreen',!d.hidden);$('#queue-drawer').hidden=true;if(!d.hidden&&current()&&!S.lyrics.length)loadLyrics(current());syncLyricsTransport()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const d=$('#lyrics-drawer');d.hidden=true;d.classList.remove('fullscreen')}});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}if(e.code==='Space'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('#play').click()}});
 try{S.favs=new Set(JSON.parse(localStorage.getItem('localify-favs')||'[]'))}catch{}if(proxyMode)$('#status').textContent='Modo proxy detectado · algunas funciones avanzadas pueden estar limitadas';render();void restoreSavedFolder();
 })();
