@@ -203,6 +203,21 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 const S={tracks:[],queue:[],playOrder:[],index:0,current:null,shuffle:false,repeat:0,favs:new Set(),lyrics:[],lyricsSynced:false,lyricIndex:-1,view:'home',search:''};
 let lyricsSearchController=null;
 const lyricsCache=new Map();
+
+const LYRICS_STORAGE_KEY='localify.remoteLyrics.v1';
+function readStoredLyrics(key){
+ try{const store=JSON.parse(localStorage.getItem(LYRICS_STORAGE_KEY)||'{}');return store[key]||null}catch(e){console.warn('No se pudo leer la caché persistente de letras:',e);return null}
+}
+function storeRemoteLyrics(key,value){
+ if(!value||(!value.lines?.length&&!value.plain))return;
+ try{
+  const store=JSON.parse(localStorage.getItem(LYRICS_STORAGE_KEY)||'{}');
+  store[key]={...value,savedAt:Date.now()};
+  const entries=Object.entries(store).sort((a,b)=>(b[1]?.savedAt||0)-(a[1]?.savedAt||0)).slice(0,150);
+  localStorage.setItem(LYRICS_STORAGE_KEY,JSON.stringify(Object.fromEntries(entries)));
+ }catch(e){console.warn('No se pudieron guardar las letras en localStorage:',e)}
+}
+
 const lyricsCacheKey=t=>[t.artist,t.title||base(t.name),t.album||'',Math.round(Number(t.duration)||0)].map(v=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()).join('|');
 const audioExt=/\.(mp3|flac|ogg|oga|opus|wav|m4a|aac|weba|webm|mp4|aif|aiff|alac|ape|wma|mid|midi)$/i,lyricExt=/\.lrc$/i;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -470,6 +485,42 @@ async function fetchSyncedLyrics(t,signal){
  const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
+ // Segundo proveedor: lrc.red. Su API permite buscar por título/artista y después
+ // descargar LRC o TTML usando el ISRC. Se usa como fallback, no como fuente primaria.
+ setLyricsSource('lrc.red');
+ try{
+  const query=[title,artist].filter(Boolean).join(' ').trim();
+  if(query){
+   const res=await fetch('https://lrc.red/search.json?'+new URLSearchParams({q:query}),{headers:{Accept:'application/json'},signal});
+   if(res.ok){
+    const data=await res.json();
+    const hits=Array.isArray(data.hits)?data.hits:[];
+    const ranked=hits.map(hit=>{
+     const titleScore=similarity(title,hit.title||'');
+     const artistScore=artist?similarity(artist,hit.artist||''):0.5;
+     const durationDiff=duration>0&&Number(hit.duration)>0?Math.abs(duration-Number(hit.duration)):9999;
+     const score=titleScore*0.72+artistScore*0.23+(durationDiff<=5?0.05:durationDiff<=15?0.02:0);
+     return{hit,titleScore,artistScore,durationDiff,score};
+    }).filter(x=>x.titleScore>=0.55&&(!artist||x.artistScore>=0.18||(x.titleScore>=0.92&&(!duration||!x.durationDiff||x.durationDiff<=12))))
+      .sort((x,y)=>y.score-x.score);
+    for(const match of ranked.slice(0,3)){
+     const isrc=String(match.hit.isrc||'').trim();
+     if(!/^[A-Z0-9]{10,20}$/i.test(isrc))continue;
+     const page='https://lrc.red/s/'+encodeURIComponent(isrc);
+     for(const ext of ['lrc','ttml']){
+      try{
+       const lyricRes=await fetch(page+'.'+ext,{headers:{Accept:ext==='ttml'?'application/ttml+xml, application/xml, text/xml':'text/plain'},signal});
+       if(!lyricRes.ok)continue;
+       const body=await lyricRes.text();
+       const lines=ext==='lrc'?parseLrc(body):parseTTML(body);
+       if(lines.length)return{lines,plain:'',kind:'lrc.red',url:page};
+      }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red '+ext+':',e)}
+     }
+    }
+   }else if(res.status===429){console.warn('lrc.red: límite de peticiones alcanzado')}
+  }
+ }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red no disponible (posible error de red/CORS):',e)}
+
  setLyricsSource('LRCLIB');
  const request=async(url)=>{
   const res=await fetch(url,{headers:{Accept:'application/json','Lrclib-Client':'Localify v1.0'},signal});
@@ -564,42 +615,6 @@ async function fetchSyncedLyrics(t,signal){
  if(plain)plainFallback=toResult(plain.record,'LRCLIB · búsqueda flexible')||plainFallback;
  if(plainFallback)return plainFallback;
 
- // Segundo proveedor: lrc.red. Su API permite buscar por título/artista y después
- // descargar LRC o TTML usando el ISRC. Se usa como fallback, no como fuente primaria.
- setLyricsSource('lrc.red');
- try{
-  const query=[title,artist].filter(Boolean).join(' ').trim();
-  if(query){
-   const res=await fetch('https://lrc.red/search.json?'+new URLSearchParams({q:query}),{headers:{Accept:'application/json'},signal});
-   if(res.ok){
-    const data=await res.json();
-    const hits=Array.isArray(data.hits)?data.hits:[];
-    const ranked=hits.map(hit=>{
-     const titleScore=similarity(title,hit.title||'');
-     const artistScore=artist?similarity(artist,hit.artist||''):0.5;
-     const durationDiff=duration>0&&Number(hit.duration)>0?Math.abs(duration-Number(hit.duration)):9999;
-     const score=titleScore*0.72+artistScore*0.23+(durationDiff<=5?0.05:durationDiff<=15?0.02:0);
-     return{hit,titleScore,artistScore,durationDiff,score};
-    }).filter(x=>x.titleScore>=0.55&&(!artist||x.artistScore>=0.18||(x.titleScore>=0.92&&(!duration||!x.durationDiff||x.durationDiff<=12))))
-      .sort((x,y)=>y.score-x.score);
-    for(const match of ranked.slice(0,3)){
-     const isrc=String(match.hit.isrc||'').trim();
-     if(!/^[A-Z0-9]{10,20}$/i.test(isrc))continue;
-     const page='https://lrc.red/s/'+encodeURIComponent(isrc);
-     for(const ext of ['lrc','ttml']){
-      try{
-       const lyricRes=await fetch(page+'.'+ext,{headers:{Accept:ext==='ttml'?'application/ttml+xml, application/xml, text/xml':'text/plain'},signal});
-       if(!lyricRes.ok)continue;
-       const body=await lyricRes.text();
-       const lines=ext==='lrc'?parseLrc(body):parseTTML(body);
-       if(lines.length)return{lines,plain:'',kind:'lrc.red',url:page};
-      }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red '+ext+':',e)}
-     }
-    }
-   }else if(res.status===429){console.warn('lrc.red: límite de peticiones alcanzado')}
-  }
- }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red no disponible (posible error de red/CORS):',e)}
-
  // Tercer fallback: lyrics.ovh devuelve letras en texto plano (sin sincronización).
  // Es útil cuando no existe un LRC/TTML para la canción.
  setLyricsSource('lyrics.ovh');
@@ -620,67 +635,81 @@ function artistQueriesForSearch(artist,variants){
  return [...new Set([artist,...variants].filter(Boolean))];
 }
 async function loadLyrics(t){
- if(lyricsSearchController)lyricsSearchController.abort();
- lyricsSearchController=new AbortController();
- const searchController=lyricsSearchController,signal=searchController.signal;
- S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;clearLyricsSource();
- $('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';
- $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
- if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}
- let plain=String(t.lrc||t.embeddedLyrics||'');
- let lines=parseLrc(plain);
- let embedded=Array.isArray(t.embeddedSynced)?t.embeddedSynced:[];
- if(lines.length||embedded.length||plain.trim())setLyricsSource(t.lrc?'Archivo .LRC':'Metadatos del archivo','local');
- if(!lines.length&&embedded.length)lines=embedded;
- if(!lines.length&&/\.mp3$/i.test(t.name)&&!t.embeddedSynced){
+  if(lyricsSearchController)lyricsSearchController.abort();
+  lyricsSearchController=new AbortController();
+  const searchController=lyricsSearchController,signal=searchController.signal;
+  S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;clearLyricsSource();
+  $('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';
+  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
+  if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}
+  const cacheKey=lyricsCacheKey(t);
+  let lines=[],plain='',remote=null;
+  // Prioridad: lrc.red, LRCLIB, lyrics.ovh y, al final, metadatos locales.
   try{
-   const data=await readId3Lyrics(t.file);
-   embedded=data.synced||[];t.embeddedSynced=embedded;
-   if(!plain)plain=data.plain||'';
-   if(embedded.length)lines=embedded;
-   if(!t.embeddedLyrics)t.embeddedLyrics=plain;
-  }catch(e){console.warn('No se pudieron leer las letras ID3:',e)}
- }
- if(S.current!==t.id)return;
- // Si solo hay texto plano o un LRC no interpretable, seguir buscando una versión sincronizada.
- if(!lines.length){
-  setLyricsSource('LRCLIB');
-  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras sincronizadas…</p>';
-  try{
-   const cacheKey=lyricsCacheKey(t);
-   let remote;
-   if(lyricsCache.has(cacheKey))remote=lyricsCache.get(cacheKey);
-   else{remote=await fetchSyncedLyrics(t,signal);if(!signal.aborted)lyricsCache.set(cacheKey,remote||null);}
+   remote=readStoredLyrics(cacheKey);
+   if(!remote&&lyricsCache.has(cacheKey))remote=lyricsCache.get(cacheKey);
+   if(!remote){
+    $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras en fuentes externas…</p>';
+    remote=await fetchSyncedLyrics(t,signal);
+    if(!signal.aborted){
+     lyricsCache.set(cacheKey,remote||null);
+     if(remote)storeRemoteLyrics(cacheKey,remote);
+    }
+   }
    if(signal.aborted||S.current!==t.id)return;
    if(remote?.lines?.length){
     lines=remote.lines;t.remoteLyrics=lines;t.remoteLyricsSource=remote.kind;t.remoteLyricsUrl=remote.url||'';
     setLyricsSource(remote.kind,'found');
-    if(remote.plain&&!plain)plain=remote.plain;
-   }else if(remote?.plain&&!plain){
+    if(remote.plain)plain=remote.plain;
+   }else if(remote?.plain){
     plain=remote.plain;t.remoteLyricsSource=remote.kind;setLyricsSource(remote.kind,'found');
    }
-  }catch(e){if(signal.aborted||e?.name==='AbortError')return;console.error('Error buscando letras:',e);setLyricsSource('Proveedores de letras','error');$('#lyrics-lines').innerHTML='<p class="muted">No se pudo conectar con los proveedores de letras. Comprueba la conexión e inténtalo de nuevo.</p>';return}
- }
- if(S.current!==t.id)return;
- if(lines.length){
-  S.lyrics=lines.map(line=>({t:Number(line.t),txt:String(line.txt||'').trim(),words:Array.isArray(line.words)?line.words.map(w=>({t:Number(w.t),txt:String(w.txt||'')})).filter(w=>Number.isFinite(w.t)&&w.txt.trim()).sort((a,b)=>a.t-b.t):[]}))
-   .filter(line=>Number.isFinite(line.t)&&line.t>=0&&line.txt)
-   .sort((a,b)=>a.t-b.t);
-  S.lyricsSynced=S.lyrics.length>0;
- }
- if(S.lyricsSynced){
-  $('#lyrics-track').innerHTML=esc(t.title+' · '+t.artist)+(t.remoteLyricsSource?' · '+(t.remoteLyricsUrl?'<a href="'+esc(t.remoteLyricsUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(t.remoteLyricsSource)+'</a>':esc(t.remoteLyricsSource)):'');
-  $('#lyrics-lines').innerHTML=S.lyrics.map((line,i)=>'<div class="lyric" data-lyric="'+i+'">'+(line.words.length?line.words.map((word,j)=>'<span class="lyric-word" data-word="'+j+'">'+esc(word.txt)+'</span>').join(''):esc(line.txt))+'</div>').join('');
-  $('#lyrics-lines').scrollTop=0;S.lyricIndex=-1;syncLyrics(true);return;
- }
- if(plain.trim()){
-  const textLines=plain.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
-  if(t.remoteLyricsSource)setLyricsSource(t.remoteLyricsSource,'found');
-  $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
-  $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return;
- }
- setLyricsSource('LRCLIB · lrc.red · lyrics.ovh','not-found');
- $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras para esta canción. Comprueba el título y el artista o vuelve a intentarlo.</p>';
+  }catch(e){
+   if(signal.aborted||e?.name==='AbortError')return;
+   console.error('Error buscando letras:',e);
+  }
+  if(S.current!==t.id)return;
+  // Los metadatos incrustados se consultan solo si las fuentes externas no dan resultado.
+  if(!lines.length&&!plain.trim()){
+   let localPlain=String(t.lrc||t.embeddedLyrics||'');
+   lines=parseLrc(localPlain);
+   let embedded=Array.isArray(t.embeddedSynced)?t.embeddedSynced:[];
+   if(!lines.length&&embedded.length)lines=embedded;
+   if(!lines.length&&/\.mp3$/i.test(t.name)&&!t.embeddedSynced){
+    try{
+     const data=await readId3Lyrics(t.file);
+     embedded=data.synced||[];t.embeddedSynced=embedded;
+     if(!localPlain)localPlain=data.plain||'';
+     if(embedded.length)lines=embedded;
+     if(!t.embeddedLyrics)t.embeddedLyrics=localPlain;
+    }catch(e){console.warn('No se pudieron leer las letras ID3:',e)}
+   }
+   if(S.current!==t.id)return;
+   if(lines.length||localPlain.trim()){
+    plain=localPlain;
+    setLyricsSource(t.lrc?'Archivo .LRC':'Metadatos del archivo','local');
+   }
+  }
+  if(S.current!==t.id)return;
+  if(lines.length){
+   S.lyrics=lines.map(line=>({t:Number(line.t),txt:String(line.txt||'').trim(),words:Array.isArray(line.words)?line.words.map(w=>({t:Number(w.t),txt:String(w.txt||'')})).filter(w=>Number.isFinite(w.t)&&w.txt.trim()).sort((a,b)=>a.t-b.t):[]}))
+    .filter(line=>Number.isFinite(line.t)&&line.t>=0&&line.txt)
+    .sort((a,b)=>a.t-b.t);
+   S.lyricsSynced=S.lyrics.length>0;
+  }
+  if(S.lyricsSynced){
+   $('#lyrics-track').innerHTML=esc(t.title+' · '+t.artist)+(t.remoteLyricsSource?' · '+(t.remoteLyricsUrl?'<a href="'+esc(t.remoteLyricsUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(t.remoteLyricsSource)+'</a>':esc(t.remoteLyricsSource)):'');
+   $('#lyrics-lines').innerHTML=S.lyrics.map((line,i)=>'<div class="lyric" data-lyric="'+i+'">'+(line.words.length?line.words.map((word,j)=>'<span class="lyric-word" data-word="'+j+'">'+esc(word.txt)+'</span>').join(''):esc(line.txt))+'</div>').join('');
+   $('#lyrics-lines').scrollTop=0;S.lyricIndex=-1;syncLyrics(true);return;
+  }
+  if(plain.trim()){
+   const textLines=plain.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
+   if(t.remoteLyricsSource)setLyricsSource(t.remoteLyricsSource,'found');
+   $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
+   $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return;
+  }
+  setLyricsSource('lrc.red · LRCLIB · lyrics.ovh · archivo local','not-found');
+  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras para esta canción. Comprueba el título y el artista o vuelve a intentarlo.</p>';
 }
 function syncLyrics(force=false){
  if(!S.lyricsSynced||!S.lyrics.length)return;
