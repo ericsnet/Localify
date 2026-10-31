@@ -697,7 +697,7 @@ function syncLyrics(force=false){
    wordEls.forEach((wordEl,j)=>wordEl.classList.toggle('active-word',active&&j===wi));
   }
  });
- if(index>=0&&(changed||force)){const active=$('[data-lyric="'+index+'"]');if(active)active.scrollIntoView({block:'center',behavior:'auto')}
+ if(index>=0&&(changed||force)){const active=$('[data-lyric="'+index+'"]');if(active)active.scrollIntoView({block:'center',behavior:'auto'})
 }
 function upcomingTracks(){const i=S.playOrder.indexOf(S.current);return S.playOrder.slice(i<0?0:i+1).map(track).filter(Boolean)}function renderQueue(){const upcoming=upcomingTracks();$('#queue-list').innerHTML=upcoming.map((t,i)=>'<div class="queue-row"><button data-qplay="'+i+'" title="Reproducir ahora">▶</button><div>'+esc(t.title)+'<small>'+esc(t.artist)+'</small></div></div>').join('')||'<p class="muted">No hay más canciones en la cola.</p>'}
 document.addEventListener('click',e=>{const row=e.target.closest('tr[data-track]');if(row&&!e.target.closest('button')){playTrack(row.dataset.track);return}let b=e.target.closest('button');if(!b)return;if(b.dataset.view){S.view=b.dataset.view;render();return}if(b.dataset.track){playTrack(b.dataset.track);return}if(b.dataset.fav){let id=b.dataset.fav;S.favs.has(id)?S.favs.delete(id):S.favs.add(id);try{localStorage.setItem('localify-favs',JSON.stringify([...S.favs]))}catch{}render();return}if(b.dataset.qplay!==undefined){const t=upcomingTracks()[Number(b.dataset.qplay)];if(t)playTrack(t.id);return}if(b.dataset.close)$('#'+b.dataset.close).hidden=true});
