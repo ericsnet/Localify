@@ -355,41 +355,47 @@ function parseTTML(ttml){
  }catch(e){console.warn('No se pudo interpretar TTML',e);return []}
 }
 async function fetchSyncedLyrics(t){
- const title=String(t.title||base(t.name)||'').replace(/\.[^.]+$/,'').trim();
- const artist=t.artist&&t.artist!=='Artista desconocido'?String(t.artist).trim():'';
+ const title=String(t.title||base(t.name)||'').replace(/\\.[^.]+$/,'').trim();
+ const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
  const request=async(url)=>{
   const res=await fetch(url,{headers:{Accept:'application/json'}});
   if(res.status===404)return null;
+  if(res.status===429){const wait=res.headers.get('Retry-After');throw new Error('LRCLIB: límite de peticiones'+(wait?' (espera '+wait+' s)':''));}
   if(!res.ok)throw new Error('HTTP '+res.status);
   return res.json();
  };
  const usable=r=>!!(r&&!r.instrumental&&(r.syncedLyrics||r.plainLyrics));
- const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-  .replace(/\.(mp3|flac|wav|m4a|ogg|opus)$/i,'')
-  .replace(/\b(feat(?:uring)?|ft)\.?\b.*$/i,'')
-  .replace(/\b(remaster(?:ed)?|radio edit|official audio|lyrics|audio|version)\b/g,' ')
+ const normalize=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
+  .replace(/\\.(mp3|flac|wav|m4a|ogg|opus)$/i,'')
+  .replace(/\\b(feat(?:uring)?|ft)\\.?\\b.*$/i,'')
+  .replace(/\\b(remaster(?:ed)?|radio edit|official audio|lyrics|audio|version|explicit|clean)\\b/g,' ')
+  .replace(/\\([^)]*\\)|\\[[^\\]]*\\]/g,' ')
   .replace(/[^a-z0-9]+/g,' ').trim();
- const tokens=v=>normalize(v).split(/\s+/).filter(w=>w.length>1);
+ const tokens=v=>normalize(v).split(/\\s+/).filter(w=>w.length>1);
  const similarity=(a,b)=>{
   const x=normalize(a),y=normalize(b);if(!x||!y)return 0;if(x===y)return 1;
   if(x.includes(y)||y.includes(x))return 0.9;
   const A=new Set(tokens(a)),B=new Set(tokens(b));if(!A.size||!B.size)return 0;
   return 2*[...A].filter(w=>B.has(w)).length/(A.size+B.size);
  };
+ // Algunos archivos solo incluyen al artista principal; LRCLIB puede guardar también colaboradores.
+ const artistVariants=[...new Set([artist,...artist.split(/\\s*(?:,|&|\\+|\\bx\\b|\\bwith\\b|\\bfeat(?:uring)?\\.?|\\bft\\.?)\\s*/i)].map(x=>x.trim()).filter(Boolean))];
  const rank=records=>{
   if(!Array.isArray(records))return [];
   return records.filter(usable).map(record=>{
    const recordTitle=record.trackName||record.name||'';
    const titleScore=similarity(title,recordTitle);
-   const artistScore=artist?similarity(artist,record.artistName||''):0.55;
+   const recordArtist=record.artistName||'';
+   const artistScore=artistVariants.length?Math.max(...artistVariants.map(a=>similarity(a,recordArtist))):0.5;
    const albumScore=album?similarity(album,record.albumName||''):0.5;
    const diff=duration>0&&Number(record.duration)>0?Math.abs(duration-Number(record.duration)):0;
    const durationScore=duration>0&&Number(record.duration)>0?Math.max(0,1-diff/90):0.5;
-   const score=titleScore*0.58+artistScore*0.22+albumScore*0.06+durationScore*0.08+(record.syncedLyrics?0.06:0);
+   const score=titleScore*0.62+artistScore*0.25+albumScore*0.04+durationScore*0.04+(record.syncedLyrics?0.05:0);
    return{record,score,titleScore,artistScore,diff};
-  }).filter(x=>x.titleScore>=0.30).sort((a,b)=>b.score-a.score);
+  }).filter(x=>x.titleScore>=0.65&&(!artistVariants.length||x.artistScore>=0.30))
+    .sort((a,b)=>b.score-a.score);
  };
  const toResult=(record,kind)=>{
   const lines=parseLrc(record.syncedLyrics||'');
@@ -398,13 +404,21 @@ async function fetchSyncedLyrics(t){
   return null;
  };
  let plainFallback=null;
+ // Primero se intenta la firma exacta. La duración se prueba, pero también se omite
+ // porque los metadatos de algunos archivos incluyen silencios o están redondeados.
  if(artist){
-  const variants=[];
-  if(album&&duration>0&&duration<=3600)variants.push({track_name:title,artist_name:artist,album_name:album,duration:String(duration)});
-  if(duration>0&&duration<=3600)variants.push({track_name:title,artist_name:artist,duration:String(duration)});
-  if(album)variants.push({track_name:title,artist_name:artist,album_name:album});
-  variants.push({track_name:title,artist_name:artist});
-  for(const params of variants){
+  const titleVariants=[title,title.replace(/\\s*[-–—:]\\s*.*/, '').trim()].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const artistQueries=[artist,...artistVariants.filter(a=>a!==artist)];
+  const attempts=[];
+  for(const a of artistQueries)for(const name of titleVariants){
+   if(album&&duration>0&&duration<=3600)attempts.push({track_name:name,artist_name:a,album_name:album,duration:String(duration)});
+   if(duration>0&&duration<=3600)attempts.push({track_name:name,artist_name:a,duration:String(duration)});
+   if(album)attempts.push({track_name:name,artist_name:a,album_name:album});
+   attempts.push({track_name:name,artist_name:a});
+  }
+  const seen=new Set();
+  for(const params of attempts){
+   const key=JSON.stringify(params);if(seen.has(key))continue;seen.add(key);
    try{
     const record=await request('https://lrclib.net/api/get?'+new URLSearchParams(params));
     if(usable(record)){
@@ -415,23 +429,30 @@ async function fetchSyncedLyrics(t){
    }catch(e){console.warn('LRCLIB /get:',e)}
   }
  }
+ // Buscar por combinaciones de título/artista y reunir los resultados antes de elegir:
+ // así una búsqueda amplia no gana solo por aparecer antes en la lista.
  const searches=[];
- if(title&&artist)searches.push({track_name:title,artist_name:artist});
+ if(title&&artist)for(const a of artistQueriesForSearch(artist,artistVariants))searches.push({track_name:title,artist_name:a});
  if(title)searches.push({track_name:title});
  if(title&&artist)searches.push({q:title+' '+artist});
  if(title)searches.push({q:title});
+ const allRecords=new Map();
  for(const params of searches){
   try{
    const records=await request('https://lrclib.net/api/search?'+new URLSearchParams(params));
-   const matches=rank(records);
-   const synced=matches.find(x=>parseLrc(x.record.syncedLyrics||'').length);
-   if(synced)return toResult(synced.record,'LRCLIB · búsqueda flexible');
-   const plain=matches.find(x=>x.record.plainLyrics);
-   if(plain&&!plainFallback)plainFallback=toResult(plain.record,'LRCLIB · búsqueda flexible');
+   if(Array.isArray(records))for(const record of records)if(record?.id!=null)allRecords.set(record.id,record);
   }catch(e){console.warn('LRCLIB /search:',e)}
  }
+ const matches=rank([...allRecords.values()]);
+ const synced=matches.find(x=>parseLrc(x.record.syncedLyrics||'').length);
+ if(synced)return toResult(synced.record,'LRCLIB · búsqueda flexible');
+ const plain=matches.find(x=>x.record.plainLyrics);
+ if(plain)plainFallback=toResult(plain.record,'LRCLIB · búsqueda flexible')||plainFallback;
  if(plainFallback)return plainFallback;
  return null;
+}
+function artistQueriesForSearch(artist,variants){
+ return [...new Set([artist,...variants].filter(Boolean))];
 }
 async function loadLyrics(t){
  S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;
