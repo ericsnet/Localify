@@ -201,6 +201,9 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 <script>
 (()=>{'use strict';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],audio=$('#audio');
 const S={tracks:[],queue:[],playOrder:[],index:0,current:null,shuffle:false,repeat:0,favs:new Set(),lyrics:[],lyricsSynced:false,lyricIndex:-1,view:'home',search:''};
+let lyricsSearchController=null;
+const lyricsCache=new Map();
+const lyricsCacheKey=t=>[t.artist,t.title||base(t.name),t.album||'',Math.round(Number(t.duration)||0)].map(v=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()).join('|');
 const audioExt=/\.(mp3|flac|ogg|oga|opus|wav|m4a|aac|weba|webm|mp4|aif|aiff|alac|ape|wma|mid|midi)$/i,lyricExt=/\.lrc$/i;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const base=s=>s.replace(/\.[^.]+$/,'').trim(),time=n=>{n=Math.floor(Number(n)||0);return Math.floor(n/60)+':'+String(n%60).padStart(2,'0')},track=id=>S.tracks.find(t=>t.id===id),current=()=>track(S.current);
@@ -368,14 +371,14 @@ function setLyricsSource(name,state='searching'){
  el.innerHTML='<span class="source-dot" aria-hidden="true"></span><span class="source-state">'+esc(labels[state]||labels.searching)+'</span><strong>'+esc(name)+'</strong>';
 }
 function clearLyricsSource(){const el=$('#lyrics-source');if(el){el.hidden=true;el.textContent='';}}
-async function fetchSyncedLyrics(t){
+async function fetchSyncedLyrics(t,signal){
  const title=String(t.title||base(t.name)||'').replace(/\.[^.]+$/,'').trim();
  const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
  setLyricsSource('LRCLIB');
  const request=async(url)=>{
-  const res=await fetch(url,{headers:{Accept:'application/json'}});
+  const res=await fetch(url,{headers:{Accept:'application/json','Lrclib-Client':'Localify v1.0'},signal});
   if(res.status===404)return null;
   if(res.status===429){const wait=res.headers.get('Retry-After');throw new Error('LRCLIB: límite de peticiones'+(wait?' (espera '+wait+' s)':''));}
   if(!res.ok)throw new Error('HTTP '+res.status);
@@ -441,7 +444,7 @@ async function fetchSyncedLyrics(t){
      if(result?.lines?.length)return result;
      if(result&&!plainFallback)plainFallback=result;
     }
-   }catch(e){console.warn('LRCLIB /get:',e)}
+   }catch(e){if(signal?.aborted)throw e;console.warn('LRCLIB /get:',e)}
   }
  }
  // Buscar por combinaciones de título/artista y reunir los resultados antes de elegir:
@@ -458,7 +461,7 @@ async function fetchSyncedLyrics(t){
   try{
    const records=await request('https://lrclib.net/api/search?'+new URLSearchParams(params));
    if(Array.isArray(records))for(const record of records)if(record?.id!=null)allRecords.set(record.id,record);
-  }catch(e){console.warn('LRCLIB /search:',e)}
+  }catch(e){if(signal?.aborted)throw e;console.warn('LRCLIB /search:',e)}
  }
  const matches=rank([...allRecords.values()]);
  const synced=matches.find(x=>parseLrc(x.record.syncedLyrics||'').length);
@@ -473,7 +476,7 @@ async function fetchSyncedLyrics(t){
  try{
   const query=[title,artist].filter(Boolean).join(' ').trim();
   if(query){
-   const res=await fetch('https://lrc.red/search.json?'+new URLSearchParams({q:query}),{headers:{Accept:'application/json'}});
+   const res=await fetch('https://lrc.red/search.json?'+new URLSearchParams({q:query}),{headers:{Accept:'application/json'},signal});
    if(res.ok){
     const data=await res.json();
     const hits=Array.isArray(data.hits)?data.hits:[];
@@ -496,12 +499,12 @@ async function fetchSyncedLyrics(t){
        const body=await lyricRes.text();
        const lines=ext==='lrc'?parseLrc(body):parseTTML(body);
        if(lines.length)return{lines,plain:'',kind:'lrc.red',url:page};
-      }catch(e){console.warn('lrc.red '+ext+':',e)}
+      }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red '+ext+':',e)}
      }
     }
    }else if(res.status===429){console.warn('lrc.red: límite de peticiones alcanzado')}
   }
- }catch(e){console.warn('lrc.red no disponible (posible error de red/CORS):',e)}
+ }catch(e){if(signal?.aborted)throw e;console.warn('lrc.red no disponible (posible error de red/CORS):',e)}
 
  // Tercer fallback: lyrics.ovh devuelve letras en texto plano (sin sincronización).
  // Es útil cuando no existe un LRC/TTML para la canción.
@@ -516,13 +519,16 @@ async function fetchSyncedLyrics(t){
      return{plain:data.lyrics.trim(),kind:'lyrics.ovh'};
    }
   }
- }catch(e){console.warn('lyrics.ovh no disponible:',e)}
+ }catch(e){if(signal?.aborted)throw e;console.warn('lyrics.ovh no disponible:',e)}
  return null;
 }
 function artistQueriesForSearch(artist,variants){
  return [...new Set([artist,...variants].filter(Boolean))];
 }
 async function loadLyrics(t){
+ if(lyricsSearchController)lyricsSearchController.abort();
+ lyricsSearchController=new AbortController();
+ const searchController=lyricsSearchController,signal=searchController.signal;
  S.lyrics=[];S.lyricsSynced=false;S.lyricIndex=-1;clearLyricsSource();
  $('#lyrics-track').textContent=t?t.title+' · '+t.artist:'';
  $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
@@ -547,8 +553,11 @@ async function loadLyrics(t){
   setLyricsSource('LRCLIB');
   $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras sincronizadas…</p>';
   try{
-   const remote=await fetchSyncedLyrics(t);
-   if(S.current!==t.id)return;
+   const cacheKey=lyricsCacheKey(t);
+   let remote;
+   if(lyricsCache.has(cacheKey))remote=lyricsCache.get(cacheKey);
+   else{remote=await fetchSyncedLyrics(t,signal);if(!signal.aborted)lyricsCache.set(cacheKey,remote||null);}
+   if(signal.aborted||S.current!==t.id)return;
    if(remote?.lines?.length){
     lines=remote.lines;t.remoteLyrics=lines;t.remoteLyricsSource=remote.kind;t.remoteLyricsUrl=remote.url||'';
     setLyricsSource(remote.kind,'found');
@@ -556,7 +565,7 @@ async function loadLyrics(t){
    }else if(remote?.plain&&!plain){
     plain=remote.plain;t.remoteLyricsSource=remote.kind;setLyricsSource(remote.kind,'found');
    }
-  }catch(e){console.error('Error buscando letras:',e);setLyricsSource('Proveedores de letras','error');$('#lyrics-lines').innerHTML='<p class="muted">No se pudo conectar con los proveedores de letras. Comprueba la conexión e inténtalo de nuevo.</p>';return}
+  }catch(e){if(signal.aborted||e?.name==='AbortError')return;console.error('Error buscando letras:',e);setLyricsSource('Proveedores de letras','error');$('#lyrics-lines').innerHTML='<p class="muted">No se pudo conectar con los proveedores de letras. Comprueba la conexión e inténtalo de nuevo.</p>';return}
  }
  if(S.current!==t.id)return;
  if(lines.length){
