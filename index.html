@@ -485,8 +485,7 @@ async function fetchSyncedLyrics(t,signal){
  const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
- // Segundo proveedor: lrc.red. Su API permite buscar por título/artista y después
- // descargar LRC o TTML usando el ISRC. Se usa como fallback, no como fuente primaria.
+ // Primera fuente externa: lrc.red. Prioriza letras sincronizadas LRC/TTML.
  setLyricsSource('lrc.red');
  try{
   const query=[title,artist].filter(Boolean).join(' ').trim();
