@@ -291,7 +291,7 @@ function decodeId3String(bytes,enc){
  try{
   if(enc===0)return new TextDecoder('windows-1252').decode(b);
   if(enc===1)return new TextDecoder('utf-16').decode(b);
-  if(enc===2){const x=b.slice();if(x.length%2)x=x.slice(0,-1);for(let i=0;i+1<x.length;i+=2){const v=x[i];x[i]=x[i+1];x[i+1]=v}return new TextDecoder('utf-16le').decode(x)}
+  if(enc===2){let x=b.slice();if(x.length%2)x=x.slice(0,-1);for(let i=0;i+1<x.length;i+=2){const v=x[i];x[i]=x[i+1];x[i+1]=v}return new TextDecoder('utf-16le').decode(x)}
   if(enc===3)return new TextDecoder('utf-8').decode(b);
  }catch(e){console.warn('ID3: no se pudo decodificar un texto',e)}
  return new TextDecoder('utf-8',{fatal:false}).decode(b);
@@ -340,11 +340,11 @@ async function readId3Lyrics(file){
    let frame=tag.slice(p+frameHeader,p+frameHeader+size);
    p+=frameHeader+size;
    // No intentar interpretar frames comprimidos, cifrados o con formato desconocido.
-   if(ver>=3&&(frameFlags&0x0c))continue;
+   if((ver===3&&(frameFlags&0xc0))||(ver===4&&(frameFlags&0x0c)))continue;
    if(ver===4&&(frameFlags&0x02))frame=stripId3Unsync(frame);
    // Group identifier / data length indicator, cuando están presentes.
    let offset=0;
-   if(ver>=3&&(frameFlags&0x40))offset++;
+   if((ver===3&&(frameFlags&0x20))||(ver===4&&(frameFlags&0x40)))offset++;
    if(ver===4&&(frameFlags&0x01))offset+=4;
    if(offset)frame=frame.slice(offset);
    if((id==='APIC'||(ver===2&&id==='PIC'))&&frame.length>16&&!cover){
