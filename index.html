@@ -287,52 +287,100 @@ function findTextTerminator(bytes,start,enc){
  return bytes.length;
 }
 function decodeId3String(bytes,enc){
- let b=bytes;
- if(enc===1){
-  if(b[0]===255&&b[1]===254)b=b.slice(2);
-  else if(b[0]===254&&b[1]===255){b=b.slice(2);const x=b.slice();for(let i=0;i+1<x.length;i+=2){const v=x[i];x[i]=x[i+1];x[i+1]=v}b=x}
-  return new TextDecoder('utf-16le').decode(b);
- }
- if(enc===2){const x=b.slice();for(let i=0;i+1<x.length;i+=2){const v=x[i];x[i]=x[i+1];x[i+1]=v}return new TextDecoder('utf-16le').decode(x)}
- if(enc===0){return [...b].map(v=>String.fromCharCode(v)).join('')}
- return new TextDecoder('utf-8').decode(b);
+ const b=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes||[]);
+ try{
+  if(enc===0)return new TextDecoder('windows-1252').decode(b);
+  if(enc===1)return new TextDecoder('utf-16').decode(b);
+  if(enc===2){const x=b.slice();if(x.length%2)x=x.slice(0,-1);for(let i=0;i+1<x.length;i+=2){const v=x[i];x[i]=x[i+1];x[i+1]=v}return new TextDecoder('utf-16le').decode(x)}
+  if(enc===3)return new TextDecoder('utf-8').decode(b);
+ }catch(e){console.warn('ID3: no se pudo decodificar un texto',e)}
+ return new TextDecoder('utf-8',{fatal:false}).decode(b);
 }
+function stripId3Unsync(input){
+ const out=new Uint8Array(input.length);let n=0;
+ for(let i=0;i<input.length;i++){const v=input[i];out[n++]=v;if(v===255&&input[i+1]===0)i++}
+ return out.slice(0,n);
+}
+function id3TextEnd(bytes,start,enc){
+ if(enc===1||enc===2){
+  for(let i=start;i+1<bytes.length;i+=2)if(bytes[i]===0&&bytes[i+1]===0)return i;
+  return bytes.length;
+ }
+ for(let i=start;i<bytes.length;i++)if(bytes[i]===0)return i;
+ return bytes.length;
+}
+function id3TextTerminatorLength(enc){return enc===1||enc===2?2:1}
 async function readId3Lyrics(file){
- const b=new Uint8Array(await file.slice(0,Math.min(file.size,4*1024*1024)).arrayBuffer());
- if(b.length<10||String.fromCharCode(...b.slice(0,3))!=='ID3')return {plain:'',synced:[],cover:''};
- const ver=b[3],tagEnd=Math.min(b.length,10+synchsafe(b,6));let p=10,plain='',synced=[],cover='';
- while(p+(ver===2?6:10)<=tagEnd){
-  const h=ver===2?6:10,id=String.fromCharCode(...b.slice(p,p+(ver===2?3:4)));
-  if(!id.trim()||id.charCodeAt(0)===0)break;
-  const size=ver===2?((b[p+3]<<16)|(b[p+4]<<8)|b[p+5]):(ver===4?synchsafe(b,p+4):((b[p+4]*0x1000000)+(b[p+5]<<16)+(b[p+6]<<8)+b[p+7]));
-  if(size<=0||p+h+size>tagEnd)break;
-  const frame=b.slice(p+h,p+h+size);
-  if((id==='APIC'||(ver===2&&id==='PIC'))&&frame.length>16&&!cover){
-   const enc=frame[0];let q=1,mime='image/jpeg';
-   if(ver===2){mime='image/'+String.fromCharCode(...frame.slice(q,q+3)).toLowerCase();q+=3}else{let z=q;while(z<frame.length&&frame[z]!==0)z++;if(z>q)mime=new TextDecoder('latin1').decode(frame.slice(q,z));q=z+1}
-   q++;const term=findTextTerminator(frame,q,enc);q=Math.min(frame.length,term+(enc===1||enc===2?2:1));
-   if(q<frame.length){const bytes=frame.slice(q);let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.slice(i,i+8192));try{cover='data:'+(mime.startsWith('image/')?mime:'image/jpeg')+';base64,'+btoa(binary)}catch{cover=''}}
+ const empty={plain:'',synced:[],cover:''};
+ try{
+  const head=new Uint8Array(await file.slice(0,10).arrayBuffer());
+  if(head.length<10||String.fromCharCode(...head.slice(0,3))!=='ID3')return empty;
+  const ver=head[3],flags=head[5];
+  if(ver<2||ver>4)return empty;
+  const tagSize=synchsafe(head,6);
+  if(!Number.isFinite(tagSize)||tagSize<=0)return empty;
+  // Leer la etiqueta completa (no el audio) para no truncar metadatos tras una portada grande.
+  const maxTagSize=64*1024*1024;
+  if(tagSize>maxTagSize||10+tagSize>file.size)return empty;
+  let tag=new Uint8Array(await file.slice(10,10+tagSize).arrayBuffer());
+  if(flags&0x80)tag=stripId3Unsync(tag);
+  let p=0,plain='',synced=[],cover='';
+  if(flags&0x40){
+   if(ver===3&&tag.length>=4){const ext=(tag[0]*0x1000000)+(tag[1]<<16)+(tag[2]<<8)+tag[3];p=Math.min(tag.length,4+ext)}
+   else if(ver===4&&tag.length>=4){const ext=synchsafe(tag,0);p=Math.min(tag.length,ext)}
+   else if(ver===2)return empty;
   }
-  if((id==='USLT'||(ver===2&&id==='ULT'))&&frame.length>=4&&!plain){
-   const enc=frame[0],st=4,term=findTextTerminator(frame,st,enc),body=term<frame.length?term+(enc===1||enc===2?2:1):term;
-   plain=decodeId3String(frame.slice(body),enc).replace(/\u0000/g,'').trim();
-  }
-  if((id==='SYLT'||(ver===2&&id==='SLT'))&&frame.length>=7&&!synced.length){
-   const enc=frame[0],stampFormat=frame[4],contentType=frame[5];let q=6;
-   if(contentType===1||contentType===2){
-    const term=findTextTerminator(frame,q,enc);q=Math.min(frame.length,term+(enc===1||enc===2?2:1));
-    while(q<frame.length){
-     const textStart=q,tend=findTextTerminator(frame,q,enc);if(tend>=frame.length)break;
-     const txt=decodeId3String(frame.slice(textStart,tend),enc).replace(/\u0000/g,'');
-     q=tend+(enc===1||enc===2?2:1);if(q+4>frame.length)break;
-     const stamp=(frame[q]*0x1000000)+(frame[q+1]<<16)+(frame[q+2]<<8)+frame[q+3];q+=4;
-     if(txt.trim())synced.push({t:stampFormat===2?stamp/1000:stamp/75,txt:txt.trim()});
+  const frameHeader=ver===2?6:10;
+  while(p+frameHeader<=tag.length){
+   const id=String.fromCharCode(...tag.slice(p,p+(ver===2?3:4)));
+   if(!id.trim()||id.charCodeAt(0)===0)break;
+   const size=ver===2?((tag[p+3]<<16)|(tag[p+4]<<8)|tag[p+5]):(ver===4?synchsafe(tag,p+4):((tag[p+4]*0x1000000)+(tag[p+5]<<16)+(tag[p+6]<<8)+tag[p+7]));
+   if(!Number.isFinite(size)||size<=0||p+frameHeader+size>tag.length)break;
+   const frameFlags=ver===2?0:tag[p+9];
+   let frame=tag.slice(p+frameHeader,p+frameHeader+size);
+   p+=frameHeader+size;
+   // No intentar interpretar frames comprimidos, cifrados o con formato desconocido.
+   if(ver>=3&&(frameFlags&0x0c))continue;
+   if(ver===4&&(frameFlags&0x02))frame=stripId3Unsync(frame);
+   // Group identifier / data length indicator, cuando están presentes.
+   let offset=0;
+   if(ver>=3&&(frameFlags&0x40))offset++;
+   if(ver===4&&(frameFlags&0x01))offset+=4;
+   if(offset)frame=frame.slice(offset);
+   if((id==='APIC'||(ver===2&&id==='PIC'))&&frame.length>16&&!cover){
+    const enc=frame[0];let q=1,mime='image/jpeg';
+    if(ver===2){mime='image/'+String.fromCharCode(...frame.slice(q,q+3)).toLowerCase();q+=3}
+    else{let z=q;while(z<frame.length&&frame[z]!==0)z++;if(z>q)mime=new TextDecoder('windows-1252').decode(frame.slice(q,z));q=z+1}
+    q++;const end=id3TextEnd(frame,q,enc);q=Math.min(frame.length,end+id3TextTerminatorLength(enc));
+    if(q<frame.length){
+     const bytes=frame.slice(q);let binary='';
+     for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.slice(i,i+8192));
+     try{cover='data:'+(mime.startsWith('image/')?mime:'image/jpeg')+';base64,'+btoa(binary)}catch{cover=''}
+    }
+   }
+   if((id==='USLT'||(ver===2&&id==='ULT'))&&frame.length>=4&&!plain){
+    const enc=frame[0],descriptionEnd=id3TextEnd(frame,4,enc),body=Math.min(frame.length,descriptionEnd+id3TextTerminatorLength(enc));
+    plain=decodeId3String(frame.slice(body),enc).replace(/\u0000/g,'').trim();
+   }
+   if((id==='SYLT'||(ver===2&&id==='SLT'))&&frame.length>=7&&!synced.length){
+    const enc=frame[0],stampFormat=frame[4],contentType=frame[5];
+    // 0=otro, 1=letras, 2=transcripción: los tres pueden contener texto cantado.
+    if(contentType<=2&&(stampFormat===1||stampFormat===2)){
+     let q=6;const descEnd=id3TextEnd(frame,q,enc);q=Math.min(frame.length,descEnd+id3TextTerminatorLength(enc));
+     while(q<frame.length){
+      const textEnd=id3TextEnd(frame,q,enc);
+      if(textEnd>=frame.length)break;
+      const txt=decodeId3String(frame.slice(q,textEnd),enc).replace(/\u0000/g,'').trim();
+      q=textEnd+id3TextTerminatorLength(enc);
+      if(q+4>frame.length)break;
+      const stamp=(frame[q]*0x1000000)+(frame[q+1]<<16)+(frame[q+2]<<8)+frame[q+3];q+=4;
+      if(txt)synced.push({t:stampFormat===2?stamp/1000:stamp/75,txt});
+     }
     }
    }
   }
-  p+=h+size;
- }
- return {plain,synced:synced.sort((a,b)=>a.t-b.t),cover};
+  return{plain,synced:synced.sort((a,b)=>a.t-b.t),cover};
+ }catch(e){console.warn('No se pudieron leer las letras ID3:',e);return empty}
 }
 async function embeddedLyrics(file){
  try{
