@@ -187,7 +187,7 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 .lyrics-source strong{color:#f2f2f2;font-size:12px}.lyrics-source .source-state{color:#888}
 .source-dot{width:7px;height:7px;border-radius:50%;background:#aaa;flex:0 0 auto}
 .lyrics-source.is-searching .source-dot{background:#e2c46b;box-shadow:0 0 0 3px #e2c46b22;animation:source-pulse 1s infinite}
-.lyrics-source.is-found .source-dot{background:#8fd18b}.lyrics-source.is-local .source-dot{background:#8bb8e8}.lyrics-source.is-error .source-dot{background:#e58b8b}
+.lyrics-source.is-found .source-dot{background:#8fd18b}.lyrics-source.is-local .source-dot{background:#8bb8e8}.lyrics-source.is-error .source-dot,.lyrics-source.is-not-found .source-dot{background:#e58b8b}
 @keyframes source-pulse{50%{opacity:.35}}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
@@ -363,7 +363,7 @@ function parseTTML(ttml){
 }
 function setLyricsSource(name,state='searching'){
  const el=$('#lyrics-source');if(!el)return;
- const labels={searching:'Consultando',found:'Fuente utilizada',local:'Archivo local',error:'Error de conexión'};
+ const labels={searching:'Consultando',found:'Fuente utilizada',local:'Archivo local',error:'Error de conexión','not-found':'Sin resultados'};
  el.hidden=false;el.className='lyrics-source is-'+state;
  el.innerHTML='<span class="source-dot" aria-hidden="true"></span><span class="source-state">'+esc(labels[state]||labels.searching)+'</span><strong>'+esc(name)+'</strong>';
 }
@@ -576,6 +576,7 @@ async function loadLyrics(t){
   $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
   $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return;
  }
+ setLyricsSource('LRCLIB · lrc.red · lyrics.ovh','not-found');
  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras para esta canción. Comprueba el título y el artista o vuelve a intentarlo.</p>';
 }
 function syncLyrics(force=false){
