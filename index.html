@@ -494,7 +494,7 @@ async function fetchSyncedLyrics(t,signal){
      const page='https://lrc.red/s/'+encodeURIComponent(isrc);
      for(const ext of ['lrc','ttml']){
       try{
-       const lyricRes=await fetch(page+'.'+ext,{headers:{Accept:ext==='ttml'?'application/ttml+xml, application/xml, text/xml':'text/plain'}});
+       const lyricRes=await fetch(page+'.'+ext,{headers:{Accept:ext==='ttml'?'application/ttml+xml, application/xml, text/xml':'text/plain'},signal});
        if(!lyricRes.ok)continue;
        const body=await lyricRes.text();
        const lines=ext==='lrc'?parseLrc(body):parseTTML(body);
@@ -512,7 +512,7 @@ async function fetchSyncedLyrics(t,signal){
  try{
   if(artist&&title){
    const url='https://api.lyrics.ovh/v1/'+encodeURIComponent(artist)+'/'+encodeURIComponent(title);
-   const res=await fetch(url,{headers:{Accept:'application/json'}});
+   const res=await fetch(url,{headers:{Accept:'application/json'},signal});
    if(res.ok){
     const data=await res.json();
     if(typeof data.lyrics==='string'&&data.lyrics.trim())
