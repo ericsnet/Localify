@@ -28,6 +28,8 @@ Después abre `http://localhost:8000`.
 
 MP3 cuenta con soporte nativo en los navegadores modernos. Para FLAC y MP3, si el navegador no consigue reproducir el archivo, Localify intenta cargar bajo demanda FFmpeg WebAssembly y convertirlo a WAV PCM para reproducirlo. Esta alternativa requiere conexión a internet la primera vez, porque descarga el decodificador desde un CDN, y consume memoria adicional; la conversión a WAV puede ocupar bastante espacio en memoria. WAV, Ogg y M4A/AAC dependen de los códecs disponibles en el navegador. No se garantiza compatibilidad con todos los formatos, incluidos WMA, APE o MIDI.
 
+La selección de carpetas (botón «Elegir carpeta») usa la API File System Access, disponible solo en navegadores basados en Chromium (Chrome, Edge, Opera). En Firefox y Safari, usa «Importar» para seleccionar archivos sueltos; el resto de funciones funciona igual.
+
 La lectura de letras incrustadas se limita a campos comunes de letras no sincronizadas en etiquetas ID3 de MP3 y comentarios Vorbis de FLAC; no cubre todas las variantes de etiquetas ni letras sincronizadas embebidas. No lee carátulas embebidas ni todos los metadatos ID3/Vorbis. Los archivos importados se reproducen desde la sesión actual; la biblioteca no se restaura automáticamente al cerrar la pestaña. Los favoritos sí se guardan localmente.
 
 ## Privacidad
