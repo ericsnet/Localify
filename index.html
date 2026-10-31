@@ -612,7 +612,7 @@ async function fetchSyncedLyrics(t,signal){
  if(synced)return toResult(synced.record,'LRCLIB · búsqueda flexible');
  const plain=matches.find(x=>x.record.plainLyrics);
  if(plain)plainFallback=toResult(plain.record,'LRCLIB · búsqueda flexible')||plainFallback;
- if(plainFallback)return plainFallback;
+ // No devolver todavía letras sin sincronizar: primero se prueban los demás proveedores.
 
  // Tercer fallback: lyrics.ovh devuelve letras en texto plano (sin sincronización).
  // Es útil cuando no existe un LRC/TTML para la canción.
@@ -623,12 +623,13 @@ async function fetchSyncedLyrics(t,signal){
    const res=await fetch(url,{headers:{Accept:'application/json'},signal});
    if(res.ok){
     const data=await res.json();
-    if(typeof data.lyrics==='string'&&data.lyrics.trim())
-     return{plain:data.lyrics.trim(),kind:'lyrics.ovh'};
+    if(typeof data.lyrics==='string'&&data.lyrics.trim()&&!plainFallback)
+     plainFallback={plain:data.lyrics.trim(),kind:'lyrics.ovh'};
    }
   }
  }catch(e){if(signal?.aborted)throw e;console.warn('lyrics.ovh no disponible:',e)}
- return null;
+ // Si ningún proveedor ofreció sincronización, recuperar la primera letra de texto plano encontrada.
+ return plainFallback||null;
 }
 function artistQueriesForSearch(artist,variants){
  return [...new Set([artist,...variants].filter(Boolean))];
