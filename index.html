@@ -407,7 +407,7 @@ async function fetchSyncedLyrics(t){
  // Primero se intenta la firma exacta. La duración se prueba, pero también se omite
  // porque los metadatos de algunos archivos incluyen silencios o están redondeados.
  if(artist){
-  const titleVariants=[title,title.replace(/\s*[-–—:]\s*.*/, '').trim()].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const titleVariants=[title,title.replace(/\\s*[-–—:]\\s*.*/, '').trim()].filter((v,i,a)=>v&&a.indexOf(v)===i);
   const artistQueries=[artist,...artistVariants.filter(a=>a!==artist)];
   const attempts=[];
   for(const a of artistQueries)for(const name of titleVariants){
@@ -432,6 +432,8 @@ async function fetchSyncedLyrics(t){
  // Buscar por combinaciones de título/artista y reunir los resultados antes de elegir:
  // así una búsqueda amplia no gana solo por aparecer antes en la lista.
  const searches=[];
+ // No asumir que el artista principal es el mismo en los metadatos del MP3 y en LRCLIB.
+ // Se consultan por separado cada colaborador y el título sin artista.
  if(title&&artist)for(const a of artistQueriesForSearch(artist,artistVariants))searches.push({track_name:title,artist_name:a});
  if(title)searches.push({track_name:title});
  if(title&&artist)searches.push({q:title+' '+artist});
