@@ -222,7 +222,7 @@ void (async()=>{
 let next=0,done=0;
 async function worker(){while(next<durationPending.length){const t=durationPending[next++];try{const probe=new Audio();probe.preload='metadata';await new Promise(resolve=>{let settled=false,timer;const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);const d=probe.duration;if(Number.isFinite(d)&&d>0)t.duration=d;probe.removeAttribute('src');probe.load();resolve()};probe.addEventListener('loadedmetadata',finish,{once:true});probe.addEventListener('durationchange',()=>{if(Number.isFinite(probe.duration)&&probe.duration>0)finish()},{once:true});probe.addEventListener('error',finish,{once:true});timer=setTimeout(finish,8000);probe.src=t.url;probe.load()})}catch(e){console.warn('No se pudo obtener la duración de '+t.name,e)}done++;if(done%8===0||done===durationPending.length){$('#status').textContent='Biblioteca lista · duración '+done+'/'+durationPending.length;render()}}}
 await Promise.all(Array.from({length:Math.min(4,durationPending.length)},()=>worker()));
-let metaNext=0;async function metaWorker(){while(metaNext<pending.length){const t=pending[metaNext++];try{const meta=await readId3Lyrics(t.file);t.cover=meta.cover||'';t.embeddedLyrics=meta.plain||'';t.embeddedSynced=meta.synced||[]}catch(e){console.warn('No se pudieron leer los metadatos de '+t.name,e)}}}
+let metaNext=0;async function metaWorker(){while(metaNext<pending.length){const t=pending[metaNext++];try{const meta=await readId3Lyrics(t.file);t.cover=meta.cover||'';t.embeddedLyrics=meta.plain||'';t.embeddedSynced=meta.synced||[];if(meta.title)t.title=meta.title;if(meta.artist)t.artist=meta.artist;if(meta.album)t.album=meta.album;if(meta.duration)t.duration=meta.duration}catch(e){console.warn('No se pudieron leer los metadatos de '+t.name,e)}}}
 await Promise.all(Array.from({length:Math.min(3,pending.length)},()=>metaWorker()));
 render();$('#status').textContent=added.length+' canción(es) añadida(s)'
 })();
@@ -324,7 +324,7 @@ async function readId3Lyrics(file){
   if(tagSize>maxTagSize||10+tagSize>file.size)return empty;
   let tag=new Uint8Array(await file.slice(10,10+tagSize).arrayBuffer());
   if(flags&0x80)tag=stripId3Unsync(tag);
-  let p=0,plain='',synced=[],cover='';
+  let p=0,plain='',synced=[],cover='',title='',artist='',album='',duration=0;
   if(flags&0x40){
    if(ver===3&&tag.length>=4){const ext=(tag[0]*0x1000000)+(tag[1]<<16)+(tag[2]<<8)+tag[3];p=Math.min(tag.length,4+ext)}
    else if(ver===4&&tag.length>=4){const ext=synchsafe(tag,0);p=Math.min(tag.length,ext)}
@@ -347,6 +347,16 @@ async function readId3Lyrics(file){
    if((ver===3&&(frameFlags&0x20))||(ver===4&&(frameFlags&0x40)))offset++;
    if(ver===4&&(frameFlags&0x01))offset+=4;
    if(offset)frame=frame.slice(offset);
+   const textFrame=id==='TIT2'||id==='TT2'?'title':id==='TPE1'||id==='TP1'?'artist':id==='TALB'||id==='TAL'?'album':id==='TLEN'||id==='TLE'?'duration':'';
+   if(textFrame&&frame.length>1){
+    const value=decodeId3String(frame.slice(1),frame[0]).replace(/\u0000/g,'').trim();
+    if(value){
+     if(textFrame==='title'&&!title)title=value;
+     if(textFrame==='artist'&&!artist)artist=value;
+     if(textFrame==='album'&&!album)album=value;
+     if(textFrame==='duration'&&!duration){const ms=Number(value);if(Number.isFinite(ms)&&ms>0)duration=ms/1000}
+    }
+   }
    if((id==='APIC'||(ver===2&&id==='PIC'))&&frame.length>16&&!cover){
     const enc=frame[0];let q=1,mime='image/jpeg';
     if(ver===2){mime='image/'+String.fromCharCode(...frame.slice(q,q+3)).toLowerCase();q+=3}
@@ -394,7 +404,7 @@ async function readId3Lyrics(file){
     }
    }
   }
-  return{plain,synced:synced.sort((a,b)=>a.t-b.t),cover};
+  return{plain,synced:synced.sort((a,b)=>a.t-b.t),cover,title,artist,album,duration};
  }catch(e){console.warn('No se pudieron leer las letras ID3:',e);return empty}
 }
 async function embeddedLyrics(file){
@@ -475,7 +485,7 @@ async function fetchSyncedLyrics(t,signal){
    const durationScore=duration>0&&Number(record.duration)>0?Math.max(0,1-diff/90):0.5;
    const score=titleScore*0.62+artistScore*0.25+albumScore*0.04+durationScore*0.04+(record.syncedLyrics?0.05:0);
    return{record,score,titleScore,artistScore,diff};
-  }).filter(x=>x.titleScore>=0.65&&(!artistVariants.length||x.artistScore>=0.30))
+  }).filter(x=>x.titleScore>=0.48&&(!artistVariants.length||x.artistScore>=0.22||(x.titleScore>=0.92&&(!duration||!x.diff||x.diff<=12))))
     .sort((a,b)=>b.score-a.score);
  };
  const toResult=(record,kind)=>{
@@ -549,7 +559,7 @@ async function fetchSyncedLyrics(t,signal){
      const durationDiff=duration>0&&Number(hit.duration)>0?Math.abs(duration-Number(hit.duration)):9999;
      const score=titleScore*0.72+artistScore*0.23+(durationDiff<=5?0.05:durationDiff<=15?0.02:0);
      return{hit,titleScore,artistScore,durationDiff,score};
-    }).filter(x=>x.titleScore>=0.72&&(!artist||x.artistScore>=0.25))
+    }).filter(x=>x.titleScore>=0.55&&(!artist||x.artistScore>=0.18||(x.titleScore>=0.92&&(!duration||!x.durationDiff||x.durationDiff<=12))))
       .sort((x,y)=>y.score-x.score);
     for(const match of ranked.slice(0,3)){
      const isrc=String(match.hit.isrc||'').trim();
