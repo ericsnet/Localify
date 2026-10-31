@@ -353,7 +353,7 @@ async function fetchSyncedLyrics(t){
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
  const request=async(url)=>{
-  const res=await fetch(url,{headers:{Accept:'application/json','Lrclib-Client':'Localify/1.0 (https://ericsnet.github.io/Localify/)'}});
+  const res=await fetch(url,{headers:{Accept:'application/json'}});
   if(res.status===404)return null;
   if(!res.ok)throw new Error('HTTP '+res.status);
   return res.json();
