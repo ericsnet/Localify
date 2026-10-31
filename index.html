@@ -358,6 +358,21 @@ async function readId3Lyrics(file){
      try{cover='data:'+(mime.startsWith('image/')?mime:'image/jpeg')+';base64,'+btoa(binary)}catch{cover=''}
     }
    }
+   if((id==='TXXX'||(ver===2&&id==='TXX'))&&frame.length>=2&&!plain){
+    const enc=frame[0],descEnd=id3TextEnd(frame,1,enc),desc=decodeId3String(frame.slice(1,descEnd),enc).trim().toLowerCase();
+    if(/^(lyrics|unsyncedlyrics|unsynchronised lyrics|unsynchronized lyrics|lyric)$/i.test(desc)){
+     const body=Math.min(frame.length,descEnd+id3TextTerminatorLength(enc));
+     plain=decodeId3String(frame.slice(body),enc).replace(/\u0000/g,'').trim();
+    }
+   }
+   if((id==='COMM'||(ver===2&&id==='COM'))&&frame.length>=5&&!plain){
+    const enc=frame[0],descStart=ver===2?4:4,descEnd=id3TextEnd(frame,descStart,enc);
+    const desc=decodeId3String(frame.slice(descStart,descEnd),enc).trim().toLowerCase();
+    if(/^(lyrics|unsyncedlyrics|unsynchronised lyrics|unsynchronized lyrics|lyric)$/i.test(desc)){
+     const body=Math.min(frame.length,descEnd+id3TextTerminatorLength(enc));
+     plain=decodeId3String(frame.slice(body),enc).replace(/\u0000/g,'').trim();
+    }
+   }
    if((id==='USLT'||(ver===2&&id==='ULT'))&&frame.length>=4&&!plain){
     const enc=frame[0],descriptionEnd=id3TextEnd(frame,4,enc),body=Math.min(frame.length,descriptionEnd+id3TextTerminatorLength(enc));
     plain=decodeId3String(frame.slice(body),enc).replace(/\u0000/g,'').trim();
