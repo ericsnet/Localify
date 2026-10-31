@@ -355,7 +355,7 @@ function parseTTML(ttml){
  }catch(e){console.warn('No se pudo interpretar TTML',e);return []}
 }
 async function fetchSyncedLyrics(t){
- const title=String(t.title||base(t.name)||'').replace(/\\.[^.]+$/,'').trim();
+ const title=String(t.title||base(t.name)||'').replace(/\.[^.]+$/,'').trim();
  const artist=String(t.artist&&t.artist!=='Artista desconocido'?t.artist:'').trim();
  const album=String(t.album||'').trim();
  const duration=Math.round(Number(t.duration)||0);
@@ -367,13 +367,13 @@ async function fetchSyncedLyrics(t){
   return res.json();
  };
  const usable=r=>!!(r&&!r.instrumental&&(r.syncedLyrics||r.plainLyrics));
- const normalize=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
-  .replace(/\\.(mp3|flac|wav|m4a|ogg|opus)$/i,'')
-  .replace(/\\b(feat(?:uring)?|ft)\\.?\\b.*$/i,'')
-  .replace(/\\b(remaster(?:ed)?|radio edit|official audio|lyrics|audio|version|explicit|clean)\\b/g,' ')
-  .replace(/\\([^)]*\\)|\\[[^\\]]*\\]/g,' ')
+ const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+  .replace(/\.(mp3|flac|wav|m4a|ogg|opus)$/i,'')
+  .replace(/\b(feat(?:uring)?|ft)\.?\b.*$/i,'')
+  .replace(/\b(remaster(?:ed)?|radio edit|official audio|lyrics|audio|version|explicit|clean)\b/g,' ')
+  .replace(/\([^)]*\)|\[[^\]]*\]/g,' ')
   .replace(/[^a-z0-9]+/g,' ').trim();
- const tokens=v=>normalize(v).split(/\\s+/).filter(w=>w.length>1);
+ const tokens=v=>normalize(v).split(/\s+/).filter(w=>w.length>1);
  const similarity=(a,b)=>{
   const x=normalize(a),y=normalize(b);if(!x||!y)return 0;if(x===y)return 1;
   if(x.includes(y)||y.includes(x))return 0.9;
@@ -381,7 +381,7 @@ async function fetchSyncedLyrics(t){
   return 2*[...A].filter(w=>B.has(w)).length/(A.size+B.size);
  };
  // Algunos archivos solo incluyen al artista principal; LRCLIB puede guardar también colaboradores.
- const artistVariants=[...new Set([artist,...artist.split(/\\s*(?:,|&|\\+|\\bx\\b|\\bwith\\b|\\bfeat(?:uring)?\\.?|\\bft\\.?)\\s*/i)].map(x=>x.trim()).filter(Boolean))];
+ const artistVariants=[...new Set([artist,...artist.split(/\s*(?:,|&|\+|\bx\b|\bwith\b|\bfeat(?:uring)?\.?|\bft\.?)\s*/i)].map(x=>x.trim()).filter(Boolean))];
  const rank=records=>{
   if(!Array.isArray(records))return [];
   return records.filter(usable).map(record=>{
@@ -407,7 +407,7 @@ async function fetchSyncedLyrics(t){
  // Primero se intenta la firma exacta. La duración se prueba, pero también se omite
  // porque los metadatos de algunos archivos incluyen silencios o están redondeados.
  if(artist){
-  const titleVariants=[title,title.replace(/\\s*[-–—:]\\s*.*/, '').trim()].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const titleVariants=[title,title.replace(/\s*[-–—:]\s*.*/, '').trim()].filter((v,i,a)=>v&&a.indexOf(v)===i);
   const artistQueries=[artist,...artistVariants.filter(a=>a!==artist)];
   const attempts=[];
   for(const a of artistQueries)for(const name of titleVariants){
