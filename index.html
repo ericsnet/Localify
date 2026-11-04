@@ -643,20 +643,17 @@ async function loadLyrics(t){
   $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras…</p>';
   if(!t){$('#lyrics-lines').innerHTML='<p class="muted">Selecciona una canción.</p>';return}
   const cacheKey=lyricsCacheKey(t);
+  const storedRemote=readStoredLyrics(cacheKey);
+  const memoryRemote=lyricsCache.get(cacheKey)||null;
   let lines=[],plain='',remote=null;
-  // Prioridad: lrc.red, LRCLIB, lyrics.ovh y, al final, metadatos locales.
+  // La búsqueda actual siempre tiene prioridad; la caché solo sirve como respaldo.
   try{
-   remote=readStoredLyrics(cacheKey);
-   if(!remote&&lyricsCache.has(cacheKey))remote=lyricsCache.get(cacheKey);
-   if(!remote){
-    $('#lyrics-lines').innerHTML='<p class="muted">Buscando letras en fuentes externas…</p>';
-    remote=await fetchSyncedLyrics(t,signal);
-    if(!signal.aborted){
-     lyricsCache.set(cacheKey,remote||null);
-     if(remote)storeRemoteLyrics(cacheKey,remote);
-    }
-   }
+   $('#lyrics-lines').innerHTML='<p class=\"muted\">Buscando letras en fuentes externas…</p>';
+   remote=await fetchSyncedLyrics(t,signal);
    if(signal.aborted||S.current!==t.id)return;
+   lyricsCache.set(cacheKey,remote||null);
+   if(remote)storeRemoteLyrics(cacheKey,remote);
+   if(!remote)remote=storedRemote||memoryRemote||null;
    if(remote?.lines?.length){
     lines=remote.lines;t.remoteLyrics=lines;t.remoteLyricsSource=remote.kind;t.remoteLyricsUrl=remote.url||'';
     setLyricsSource(remote.kind,'found');
@@ -667,6 +664,7 @@ async function loadLyrics(t){
   }catch(e){
    if(signal.aborted||e?.name==='AbortError')return;
    console.error('Error buscando letras:',e);
+   remote=storedRemote||memoryRemote||null;
   }
   if(S.current!==t.id)return;
   // Los metadatos incrustados se consultan solo si las fuentes externas no dan resultado.
