@@ -189,15 +189,60 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
 .lyrics-source.is-searching .source-dot{background:#e2c46b;box-shadow:0 0 0 3px #e2c46b22;animation:source-pulse 1s infinite}
 .lyrics-source.is-found .source-dot{background:#8fd18b}.lyrics-source.is-local .source-dot{background:#8bb8e8}.lyrics-source.is-error .source-dot,.lyrics-source.is-not-found .source-dot{background:#e58b8b}
 @keyframes source-pulse{50%{opacity:.35}}
+
+/* Floating player: compact, draggable and independent from the bottom transport */
+.float-launch{width:34px;height:34px;border:1px solid #383838;border-radius:8px;background:#171717;color:#ddd;display:grid;place-items:center}
+.float-launch:hover,.float-launch[aria-pressed="true"]{background:#292929;color:#fff;border-color:#777}
+.float-launch svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#floating-player{position:fixed;z-index:80;right:22px;bottom:112px;width:min(360px,calc(100vw - 24px));background:#111;border:1px solid #414141;border-radius:12px;box-shadow:0 24px 80px #000c;overflow:hidden;color:#f4f4f4}
+#floating-player[hidden]{display:none}
+.float-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #292929;background:#171717;cursor:grab;user-select:none;touch-action:none}
+.float-head:active{cursor:grabbing}.float-head strong{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#aaa}
+.float-head button,.float-tabs button{background:transparent;border:0;color:#aaa;cursor:pointer;border-radius:6px;padding:6px 9px}
+.float-head button:hover,.float-tabs button:hover{background:#292929;color:#fff}
+.float-tabs{display:flex;gap:4px;padding:9px 12px 0}
+.float-tabs button{font-size:11px;border:1px solid transparent}
+.float-tabs button[aria-pressed="true"]{color:#fff;background:#252525;border-color:#414141}
+.float-body{padding:13px 14px 15px}
+.float-track{display:flex;align-items:center;gap:11px;min-width:0}
+.float-track .cover{width:44px;height:44px;flex-shrink:0}
+.float-track strong,.float-track span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.float-track strong{font-size:12px}.float-track span{font-size:10px;color:#888;margin-top:4px}
+.float-controls{display:flex;align-items:center;justify-content:center;gap:15px;margin:12px 0 8px}
+.float-controls button{border:0;background:none;color:#bbb;font-size:17px;cursor:pointer;padding:5px}
+.float-controls button:hover{color:#fff}
+.float-controls #float-play{width:34px;height:34px;border-radius:50%;background:#eee;color:#111;font-size:13px}
+.float-seek{display:flex;align-items:center;gap:8px;color:#888;font:10px ui-monospace,monospace}
+.float-seek input{width:100%;min-width:0;accent-color:#eee}
+#float-lyrics{max-height:230px;overflow:auto;text-align:center;display:grid;gap:12px;padding:10px 4px 4px;scroll-behavior:smooth}
+#float-lyrics .lyric{font-size:13px;line-height:1.55;color:#777}
+#float-lyrics .lyric.active{font-size:16px;color:#fff;font-weight:800}
+#floating-player[data-mode="controls"] #float-lyrics{display:none}
+#floating-player[data-mode="lyrics"] .float-controls,#floating-player[data-mode="lyrics"] .float-seek,#floating-player[data-mode="lyrics"] .float-track{display:none}
+#floating-player[data-mode="lyrics"] .float-body{padding-top:5px}
+@media(max-width:640px){#floating-player{right:12px;bottom:152px;width:min(340px,calc(100vw - 24px))}.float-head{padding:10px 12px}}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
 <section class="import" id="welcome"><span class="symbol">♫</span><div><h2>Empieza por tu biblioteca</h2><p>Importa tu carpeta. Localify buscará letras en los metadatos de tus canciones y también aceptará archivos <b>.lrc</b> externos.</p></div><button class="btn" id="choose">Elegir carpeta</button></section>
 <section id="library-section" class="hide"><div class="section-head"><div><p class="eyebrow">TU COLECCIÓN</p><h2 id="list-title">Tu biblioteca musical</h2></div><span class="muted small" id="count">0 canciones</span></div><table class="tracks"><thead><tr><th>#</th><th>TÍTULO</th><th>CARPETA</th><th>◷</th><th></th></tr></thead><tbody id="tracks"></tbody></table></section>
 <section class="features" id="features"><article class="feature"><span class="accent">♫</span><h3>Letras integradas</h3><p>Lee letras incrustadas en los metadatos compatibles, además de archivos .lrc externos.</p></article><article class="feature"><span class="accent">↝</span><h3>Tu forma de escuchar</h3><p>Cola editable, reproducción aleatoria, repetición y favoritos.</p></article><article class="feature"><span class="accent">▥</span><h3>Visualizador</h3><p>Una animación de onda acompaña tu sesión de música.</p></article></section></div><footer class="foot"><span>LOCALIFY · TU BIBLIOTECA, EN LOCAL</span><button id="proxy-test" type="button">Probar compatibilidad</button><span id="status">Esperando tu música</span></footer></main></div>
-<footer class="player"><div class="now"><div class="cover" id="now-cover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"/></svg></div><div><strong id="now-title">Elige una canción</strong><span id="now-artist">Tu música te espera</span></div><button id="fav-current" class="heart" title="Favorito">♡</button></div><div class="center"><div class="controls"><button class="control" id="shuffle" title="Aleatorio">⤨</button><button class="control transport-skip" id="prev" title="Anterior" aria-label="Canción anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 6 9 12l10 6V6Z"/></svg></button><button id="play">▶</button><button class="control transport-skip" id="next" title="Siguiente" aria-label="Canción siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 6l10 6-10 6V6Z"/></svg></button><button class="control" id="repeat" title="Repetir">↻</button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="duration">0:00</span></div></div><div class="right"><button class="control" id="lyrics-toggle" title="Letras" aria-label="Mostrar letras"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8"/></svg></button><button class="control" id="queue-toggle" title="Cola" aria-label="Mostrar cola"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button><span class="vol" aria-label="Volumen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></span><input id="volume" type="range" min="0" max="1" step=".01" value=".8"></div></footer>
+<footer class="player"><div class="now"><div class="cover" id="now-cover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3Zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3Z"/></svg></div><div><strong id="now-title">Elige una canción</strong><span id="now-artist">Tu música te espera</span></div><button id="fav-current" class="heart" title="Favorito">♡</button></div><div class="center"><div class="controls"><button class="control" id="shuffle" title="Aleatorio">⤨</button><button class="control transport-skip" id="prev" title="Anterior" aria-label="Canción anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 6 9 12l10 6V6Z"/></svg></button><button id="play">▶</button><button class="control transport-skip" id="next" title="Siguiente" aria-label="Canción siguiente"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 6l10 6-10 6V6Z"/></svg></button><button class="control" id="repeat" title="Repetir">↻</button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="duration">0:00</span></div></div><div class="right"><button class="control" id="lyrics-toggle" title="Letras" aria-label="Mostrar letras"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8"/></svg></button><button class="float-launch" id="float-toggle" type="button" title="Abrir reproductor flotante" aria-label="Abrir reproductor flotante" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M11 14h7v4h-7zM7 8h10"/></svg></button><button class="control" id="queue-toggle" title="Cola" aria-label="Mostrar cola"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button><span class="vol" aria-label="Volumen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/></svg></span><input id="volume" type="range" min="0" max="1" step=".01" value=".8"></div></footer>
 <section class="drawer" id="queue-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">A CONTINUACIÓN</p><h2>Tu cola</h2></div><button data-close="queue-drawer">×</button></div><div id="queue-list"></div></section><section class="drawer" id="lyrics-drawer" hidden><div class="drawer-head"><div><p class="eyebrow">SIGUE EL RITMO</p><h2>Letras</h2></div><button data-close="lyrics-drawer">×</button></div><p class="muted small" id="lyrics-track">Selecciona una canción</p><div id="lyrics-source" class="lyrics-source" hidden aria-live="polite"></div><div class="lyrics" id="lyrics-lines"><p class="muted">Importa un archivo .lrc para mostrar letras sincronizadas.</p></div></section>
-<input id="folder" type="file" webkitdirectory directory multiple hidden><input id="files" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.opus,.wav,.m4a,.aac,.wma,.aiff,.ape,.alac,.mid,.midi,.lrc" hidden><audio id="audio" preload="auto"></audio>
+<section id="floating-player" data-mode="controls" hidden aria-label="Reproductor flotante">
+ <div class="float-head" id="float-drag"><strong>Localify · ventana flotante</strong><button id="float-close" type="button" aria-label="Cerrar ventana flotante" title="Cerrar">×</button></div>
+ <div class="float-tabs" role="group" aria-label="Contenido de la ventana flotante">
+  <button type="button" data-float-mode="controls" aria-pressed="true">Control</button>
+  <button type="button" data-float-mode="lyrics" aria-pressed="false">Letras</button>
+  <button type="button" data-float-mode="both" aria-pressed="false">Ambos</button>
+ </div>
+ <div class="float-body">
+  <div class="float-track"><div class="cover" id="float-cover"></div><div style="min-width:0"><strong id="float-title">Elige una canción</strong><span id="float-artist">Tu música te espera</span></div></div>
+  <div class="float-controls"><button id="float-prev" type="button" title="Anterior" aria-label="Canción anterior">|◀</button><button id="float-play" type="button" title="Reproducir o pausar" aria-label="Reproducir o pausar">▶</button><button id="float-next" type="button" title="Siguiente" aria-label="Canción siguiente">▶|</button></div>
+  <div class="float-seek"><span id="float-elapsed">0:00</span><input id="float-seek" type="range" min="0" max="1000" value="0" aria-label="Posición de reproducción"><span id="float-duration">0:00</span></div>
+  <div id="float-lyrics" aria-live="polite"><p class="muted">Las letras aparecerán aquí cuando estén disponibles.</p></div>
+ </div>
+</section><input id="folder" type="file" webkitdirectory directory multiple hidden><input id="files" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.opus,.wav,.m4a,.aac,.wma,.aiff,.ape,.alac,.mid,.midi,.lrc" hidden><audio id="audio" preload="auto"></audio>
 <script>
 (()=>{'use strict';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],audio=$('#audio');
 const S={tracks:[],queue:[],playOrder:[],index:0,current:null,shuffle:false,repeat:0,favs:new Set(),lyrics:[],lyricsSynced:false,lyricIndex:-1,view:'home',search:''};
@@ -257,7 +302,7 @@ function coverContent(t){return t?.cover?'<img src="'+t.cover+'" alt="Portada de
 function render(){let list=visible();$('#count').textContent=list.length+' canciones';$('#list-title').textContent=S.view==='favorites'?'Tus favoritos':S.search?'Resultados de búsqueda':'Tu biblioteca musical';$('#tracks').innerHTML=list.length?list.map((t,i)=>'<tr data-track="'+t.id+'" class="'+(t.id===S.current?'playing':'')+'"><td>'+(t.id===S.current?'♫':i+1)+'</td><td><div class="track"><div class="cover">'+coverContent(t)+'</div><div><div class="title">'+esc(t.title)+'</div><div class="artist">'+esc(t.artist)+'</div></div></div></td><td>'+esc(t.folder)+'</td><td>'+time(t.duration)+'</td><td><button class="mini" data-fav="'+t.id+'">'+(S.favs.has(t.id)?'♥':'♡')+'</button></td></tr>').join(''):'<tr><td colspan="5" class="empty">No hay canciones para mostrar.</td></tr>';$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===S.view));updatePlayer();renderQueue()}
 // Compatibilidad: el transporte de letras fue retirado del HTML; mantener las llamadas antiguas sin romper el reproductor.
 function syncLyricsTransport(){}
-function updatePlayer(){let t=current();$('#now-cover').innerHTML=coverContent(t);syncLyricsTransport();$('#now-title').textContent=t?.title||'Elige una canción';$('#now-artist').textContent=t?.artist||'Tu música te espera';$('#play').textContent=audio.paused?'▶':'Ⅱ';$('#elapsed').textContent=time(audio.currentTime);$('#duration').textContent=time(audio.duration||t?.duration);$('#fav-current').textContent=t&&S.favs.has(t.id)?'♥':'♡';$('#shuffle').classList.toggle('on',S.shuffle);$('#repeat').classList.toggle('on',S.repeat>0);$('#repeat').textContent=S.repeat===2?'↻¹':'↻'}
+function updatePlayer(){let t=current();$('#now-cover').innerHTML=coverContent(t);syncLyricsTransport();$('#now-title').textContent=t?.title||'Elige una canción';$('#now-artist').textContent=t?.artist||'Tu música te espera';$('#play').textContent=audio.paused?'▶':'Ⅱ';$('#elapsed').textContent=time(audio.currentTime);$('#duration').textContent=time(audio.duration||t?.duration);$('#fav-current').textContent=t&&S.favs.has(t.id)?'♥':'♡';$('#shuffle').classList.toggle('on',S.shuffle);$('#repeat').classList.toggle('on',S.repeat>0);$('#repeat').textContent=S.repeat===2?'↻¹':'↻';updateFloatingState()}
 function rebuildShuffleQueue(){const currentId=S.current;let ids=S.tracks.map(t=>t.id);if(S.shuffle){ids=ids.filter(id=>id!==currentId);for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}if(currentId)ids.unshift(currentId)}S.playOrder=ids;S.index=Math.max(0,S.playOrder.indexOf(currentId));}
 function makeProxyTestDataUrl(){const rate=8000,samples=rate,buffer=new ArrayBuffer(44+samples),v=new DataView(buffer),bytes=new Uint8Array(buffer);const put=(o,str)=>{for(let i=0;i<str.length;i++)v.setUint8(o+i,str.charCodeAt(i))};put(0,'RIFF');v.setUint32(4,36+samples,true);put(8,'WAVE');put(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate,true);v.setUint16(32,1,true);v.setUint16(34,8,true);put(36,'data');v.setUint32(40,samples,true);for(let i=0;i<samples;i++)bytes[44+i]=128+Math.round(22*Math.sin(2*Math.PI*440*i/rate));let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+8192,bytes.length)));return'data:audio/wav;base64,'+btoa(binary)}
 function runProxyTest(){
@@ -698,16 +743,16 @@ async function loadLyrics(t){
   if(S.lyricsSynced){
    $('#lyrics-track').innerHTML=esc(t.title+' · '+t.artist)+(t.remoteLyricsSource?' · '+(t.remoteLyricsUrl?'<a href="'+esc(t.remoteLyricsUrl)+'" target="_blank" rel="noopener noreferrer">'+esc(t.remoteLyricsSource)+'</a>':esc(t.remoteLyricsSource)):'');
    $('#lyrics-lines').innerHTML=S.lyrics.map((line,i)=>'<div class="lyric" data-lyric="'+i+'">'+(line.words.length?line.words.map((word,j)=>'<span class="lyric-word" data-word="'+j+'">'+esc(word.txt)+'</span>').join(''):esc(line.txt))+'</div>').join('');
-   $('#lyrics-lines').scrollTop=0;S.lyricIndex=-1;syncLyrics(true);return;
+   $('#lyrics-lines').scrollTop=0;S.lyricIndex=-1;syncLyrics(true);updateFloatingLyrics();return;
   }
   if(plain.trim()){
    const textLines=plain.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
    if(t.remoteLyricsSource)setLyricsSource(t.remoteLyricsSource,'found');
-   $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
+   $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');updateFloatingLyrics();
    $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';return;
   }
   setLyricsSource('lrc.red · LRCLIB · lyrics.ovh · archivo local','not-found');
-  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras para esta canción. Comprueba el título y el artista o vuelve a intentarlo.</p>';
+  $('#lyrics-lines').innerHTML='<p class="muted">No se han encontrado letras para esta canción. Comprueba el título y el artista o vuelve a intentarlo.</p>';updateFloatingLyrics();
 }
 function syncLyrics(force=false){
  if(!S.lyricsSynced||!S.lyrics.length)return;
@@ -761,6 +806,71 @@ async function decodeFallback(t){
  }catch(err){console.error('Localify: fallo del decodificador alternativo',err);$('#status').textContent='No se pudo decodificar. Comprueba la conexión y el archivo.'}
 }
 async function retryTrackAsDataUrl(t){if(!t?.file||t.dataUrlTried)return false;t.dataUrlTried=true;return await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>{if(typeof reader.result!=='string'){resolve(false);return}t.url=reader.result;audio.src=t.url;audio.load();audio.play().then(()=>{$('#status').textContent='Reproducción recuperada usando una URL de datos compatible con el proxy';resolve(true)}).catch(()=>resolve(false))};reader.onerror=()=>resolve(false);reader.readAsDataURL(t.file)})}audio.addEventListener('error',async()=>{const t=current();if(t?.isProxyTest)return;if(t?.file&&!t.dataUrlTried){const recovered=await retryTrackAsDataUrl(t);if(recovered)return}if(t&&!t.fallbackTried&&/\.(flac|mp3)$/i.test(t.name)){decodeFallback(t)}else if(t)$('#status').textContent='No se pudo reproducir este formato. El proxy puede estar bloqueando blob: y también la alternativa de datos.'});
+function updateFloatingState(){
+ const panel=$('#floating-player');if(!panel)return;
+ const t=current();
+ $('#float-cover').innerHTML=coverContent(t);
+ $('#float-title').textContent=t?.title||'Elige una canción';
+ $('#float-artist').textContent=t?.artist||'Tu música te espera';
+ $('#float-play').textContent=audio.paused?'▶':'Ⅱ';
+ $('#float-elapsed').textContent=time(audio.currentTime);
+ $('#float-duration').textContent=time(audio.duration||t?.duration);
+ $('#float-seek').value=Number.isFinite(audio.duration)&&audio.duration>0?Math.max(0,Math.min(1000,Math.round(audio.currentTime/audio.duration*1000))):0;
+ updateFloatingLyrics();
+}
+function updateFloatingLyrics(){
+ const target=$('#float-lyrics'),source=$('#lyrics-lines');if(!target||!source)return;
+ if(!source.children.length){target.innerHTML='<p class="muted">Las letras aparecerán aquí cuando estén disponibles.</p>';return}
+ target.innerHTML=source.innerHTML;
+ const activeIndex=S.lyricIndex;
+ target.querySelectorAll('[data-lyric]').forEach(el=>{
+  const i=Number(el.dataset.lyric),active=i===activeIndex;
+  el.classList.toggle('active',active);
+  const words=el.querySelectorAll('[data-word]'),line=S.lyrics[i];
+  if(words.length&&line?.words?.length){
+   let wi=-1;for(let j=0;j<line.words.length;j++)if(line.words[j].t<=audio.currentTime)wi=j;
+   words.forEach((word,j)=>word.classList.toggle('active-word',active&&j===wi));
+  }
+ });
+ if(activeIndex>=0&&activeIndex!==updateFloatingLyrics.lastIndex){
+  const active=target.querySelector('[data-lyric="'+activeIndex+'"]');
+  if(active)target.scrollTop=Math.max(0,active.offsetTop-target.offsetTop-target.clientHeight/2+active.clientHeight/2);
+  updateFloatingLyrics.lastIndex=activeIndex;
+ }
+}
+updateFloatingLyrics.lastIndex=-1;
+let floatMode='controls';
+function setFloatingMode(mode){
+ floatMode=mode;const panel=$('#floating-player');panel.dataset.mode=mode;
+ $$('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===mode)));
+}
+$('#float-toggle').addEventListener('click',()=>{
+ const panel=$('#floating-player'),open=panel.hidden;
+ panel.hidden=!open;$('#float-toggle').setAttribute('aria-pressed',String(open));
+ $('#float-toggle').title=open?'Cerrar reproductor flotante':'Abrir reproductor flotante';
+ if(open){updateFloatingState();if(current()&&!S.lyrics.length)loadLyrics(current())}
+});
+$('#float-close').addEventListener('click',()=>{$('#floating-player').hidden=true;$('#float-toggle').setAttribute('aria-pressed','false')});
+$$('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
+$('#float-play').addEventListener('click',()=>$('#play').click());
+$('#float-prev').addEventListener('click',()=>$('#prev').click());
+$('#float-next').addEventListener('click',()=>$('#next').click());
+$('#float-seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentTime=audio.duration*Number(e.target.value)/1000});
+(()=>{
+ const panel=$('#floating-player'),handle=$('#float-drag');let drag=null;
+ handle.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button'))return;
+  const r=panel.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};
+  handle.setPointerCapture(e.pointerId);
+ });
+ handle.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const x=Math.max(0,Math.min(innerWidth-panel.offsetWidth,e.clientX-drag.x));
+  const y=Math.max(0,Math.min(innerHeight-panel.offsetHeight,e.clientY-drag.y));
+  panel.style.left=x+'px';panel.style.top=y+'px';panel.style.right='auto';panel.style.bottom='auto';
+ });
+ const stop=()=>{drag=null};handle.addEventListener('pointerup',stop);handle.addEventListener('pointercancel',stop);
+})();
 $('#queue-toggle').addEventListener('click',()=>{$('#queue-drawer').hidden=!$('#queue-drawer').hidden;$('#lyrics-drawer').hidden=true});
 $('#lyrics-toggle').addEventListener('click',()=>{const d=$('#lyrics-drawer');d.hidden=!d.hidden;d.classList.toggle('fullscreen',!d.hidden);$('#queue-drawer').hidden=true;if(!d.hidden&&current()&&!S.lyrics.length)loadLyrics(current());syncLyricsTransport()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const d=$('#lyrics-drawer');d.hidden=true;d.classList.remove('fullscreen')}});document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}if(e.code==='Space'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('#play').click()}});
 try{S.favs=new Set(JSON.parse(localStorage.getItem('localify-favs')||'[]'))}catch{}if(proxyMode)$('#status').textContent='Modo proxy detectado · algunas funciones avanzadas pueden estar limitadas';render();void restoreSavedFolder();
