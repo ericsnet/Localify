@@ -817,6 +817,7 @@ function updateFloatingState(){
  $('#float-duration').textContent=time(audio.duration||t?.duration);
  $('#float-seek').value=Number.isFinite(audio.duration)&&audio.duration>0?Math.max(0,Math.min(1000,Math.round(audio.currentTime/audio.duration*1000))):0;
  updateFloatingLyrics();
+ syncFloatingPiP();
 }
 function updateFloatingLyrics(){
  const target=$('#float-lyrics'),source=$('#lyrics-lines');if(!target||!source)return;
@@ -837,21 +838,64 @@ function updateFloatingLyrics(){
   if(active)target.scrollTop=Math.max(0,active.offsetTop-target.offsetTop-target.clientHeight/2+active.clientHeight/2);
   updateFloatingLyrics.lastIndex=activeIndex;
  }
+ syncFloatingPiP();
 }
 updateFloatingLyrics.lastIndex=-1;
 let floatMode='controls';
+let floatingPiPWindow=null;
+function syncFloatingPiP(){
+ const w=floatingPiPWindow;if(!w||w.closed)return;
+ const d=w.document;
+ const pairs=[['#float-cover','#float-cover'],['#float-title','#float-title'],['#float-artist','#float-artist'],['#float-play','#float-play'],['#float-elapsed','#float-elapsed'],['#float-duration','#float-duration'],['#float-seek','#float-seek'],['#float-lyrics','#float-lyrics']];
+ for(const [sourceId,targetId] of pairs){
+  const source=$(sourceId),target=d.querySelector(targetId);if(!source||!target)continue;
+  if(sourceId==='#float-cover'||sourceId==='#float-lyrics')target.innerHTML=source.innerHTML;
+  else if(sourceId==='#float-seek')target.value=source.value;
+  else target.textContent=source.textContent;
+ }
+ const panel=d.querySelector('#floating-player');if(panel)panel.dataset.mode=floatMode;
+ d.querySelectorAll('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===floatMode)));
+}
+async function openFloatingPiP(){
+ if(!('documentPictureInPicture' in window)){
+  $('#status').textContent='Tu navegador no admite ventanas Picture-in-Picture con contenido HTML. Prueba Chrome o Edge actualizado.';
+  return;
+ }
+ try{
+  if(floatingPiPWindow&&!floatingPiPWindow.closed){floatingPiPWindow.close();return}
+  const w=await window.documentPictureInPicture.requestWindow({width:360,height:440});
+  floatingPiPWindow=w;
+  const d=w.document;d.title='Localify · reproductor';
+  d.documentElement.style.colorScheme='dark';
+  document.querySelectorAll('style,link[rel="stylesheet"]').forEach(node=>d.head.append(node.cloneNode(true)));
+  const extra=d.createElement('style');
+  extra.textContent='html,body{margin:0;min-width:280px;min-height:100%;background:#090909;color:#f4f4f4;font-family:Inter,system-ui,sans-serif}body{overflow:auto}#floating-player{position:static!important;display:block!important;width:100%!important;max-width:none!important;min-height:100vh;box-sizing:border-box;border:0!important;border-radius:0!important;box-shadow:none!important}#floating-player[hidden]{display:block!important}.float-head{cursor:default}.float-body{padding:14px}.float-tabs{position:sticky;top:0;background:#111;z-index:2}#float-lyrics{max-height:240px}button,input{font:inherit}';
+  d.head.append(extra);
+  const clone=$('#floating-player').cloneNode(true);clone.hidden=false;clone.style.cssText='position:static;width:100%;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;z-index:auto';
+  d.body.append(clone);
+  clone.querySelector('#float-close').addEventListener('click',()=>w.close());
+  clone.querySelector('#float-play').addEventListener('click',()=>$('#play').click());
+  clone.querySelector('#float-prev').addEventListener('click',()=>$('#prev').click());
+  clone.querySelector('#float-next').addEventListener('click',()=>$('#next').click());
+  clone.querySelector('#float-seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentTime=audio.duration*Number(e.target.value)/1000});
+  clone.querySelectorAll('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
+  w.addEventListener('pagehide',()=>{if(floatingPiPWindow===w)floatingPiPWindow=null;$('#float-toggle').setAttribute('aria-pressed','false');$('#float-toggle').title='Abrir ventana flotante'});
+  $('#float-toggle').setAttribute('aria-pressed','true');$('#float-toggle').title='Cerrar ventana flotante';
+  updateFloatingState();
+  if(current()&&!S.lyrics.length)loadLyrics(current());
+ }catch(error){
+  console.error('No se pudo abrir la ventana Picture-in-Picture:',error);
+  $('#status').textContent='No se pudo abrir la ventana flotante. Comprueba los permisos del navegador e inténtalo de nuevo.';
+ }
+}
 function setFloatingMode(mode){
  floatMode=mode;const panel=$('#floating-player');panel.dataset.mode=mode;
- $$('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===mode)));
+ $('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===mode)));
+ syncFloatingPiP();
 }
-$('#float-toggle').addEventListener('click',()=>{
- const panel=$('#floating-player'),open=panel.hidden;
- panel.hidden=!open;$('#float-toggle').setAttribute('aria-pressed',String(open));
- $('#float-toggle').title=open?'Cerrar reproductor flotante':'Abrir reproductor flotante';
- if(open){updateFloatingState();if(current()&&!S.lyrics.length)loadLyrics(current())}
-});
+$('#float-toggle').addEventListener('click',openFloatingPiP);
 $('#float-close').addEventListener('click',()=>{$('#floating-player').hidden=true;$('#float-toggle').setAttribute('aria-pressed','false')});
-$$('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
+$('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
 $('#float-play').addEventListener('click',()=>$('#play').click());
 $('#float-prev').addEventListener('click',()=>$('#prev').click());
 $('#float-next').addEventListener('click',()=>$('#next').click());
