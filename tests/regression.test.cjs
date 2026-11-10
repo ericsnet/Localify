@@ -174,15 +174,15 @@ test('la prueba de compatibilidad retirada no vuelve a aparecer', () => {
 });
 
 test('los controles de letras y cola tienen estado accesible y alternan sus paneles', () => {
-  assert.match(source, /id="lyrics-toggle"[^>]*aria-expanded="false"/);
-  assert.match(source, /id="queue-toggle"[^>]*aria-expanded="false"/);
+  assert.match(html, /id="lyrics-toggle"[^>]*aria-expanded="false"/);
+  assert.match(html, /id="queue-toggle"[^>]*aria-expanded="false"/);
   assert.match(source, /\$\('#queue-toggle'\)\.setAttribute\('aria-expanded',String\(opening\)\)/);
   assert.match(source, /\$\('#lyrics-toggle'\)\.addEventListener\('click'/);
 });
 
 test('el volumen sigue siendo accesible en móvil mediante un control desplegable', () => {
-  assert.match(source, /id="volume-toggle"/);
-  assert.match(source, /id="volume" type="range"/);
-  assert.match(source, /volume-open input#volume/);
+  assert.match(html, /id="volume-toggle"/);
+  assert.match(html, /id="volume" type="range"/);
+  assert.match(html, /volume-open input#volume/);
   assert.match(source, /audio\.volume=Number\(e\.target\.value\)/);
 });
