@@ -1026,7 +1026,7 @@ $('#float-seek').addEventListener('input',e=>{if(audio.duration>0)audio.currentT
 function setQueueDrawerOpen(open){const d=$('#queue-drawer'),button=$('#queue-toggle'),opening=Boolean(open);if(opening){toggleLyricsDrawer(false);d.hidden=false;d.removeAttribute('hidden');d.style.setProperty('z-index','2147482999','important')}else{d.hidden=true;d.setAttribute('hidden','');d.style.removeProperty('z-index')}$('#queue-toggle').setAttribute('aria-expanded',String(opening))}
 function toggleLyricsDrawer(force){
  const d=$('#lyrics-drawer'),button=$('#lyrics-toggle');
- const open=typeof force==='boolean'?force:(d.hidden||!d.classList.contains('fullscreen'));
+ const open=typeof force==='boolean'?force:d.hidden;
  if(open){
   $('#queue-drawer').hidden=true;$('#queue-toggle')?.setAttribute('aria-expanded','false');
   if(d.parentElement!==document.body)document.body.appendChild(d);
