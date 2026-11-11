@@ -188,6 +188,11 @@ test('la cola usa identificadores de canción estables en los botones', () => {
   assert.match(source, /list\.replaceChildren\(\)/);
 });
 
+test('el guardado de carpeta verifica IndexedDB y solicita almacenamiento persistente', () => {
+  assert.match(source, /navigator\.storage\?\.persist\?\.\(\)/);
+  assert.match(source, /const saved=await getSavedFolderHandle\(\)/);
+  assert.match(source, /if\(!saved\)throw new Error/);
+});
 test('la restauración de carpeta usa el permiso persistido y vuelve a solicitarlo con acción del usuario', () => {
   assert.match(source, /indexedDB\.open\(FOLDER_DB,1\)/);
   assert.match(source, /handle\.queryPermission\(\{mode:'read'\}\)/);
