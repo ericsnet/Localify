@@ -173,6 +173,28 @@ test('la prueba de compatibilidad retirada no vuelve a aparecer', () => {
   assert.equal(source.includes('runProxyTest'), false);
 });
 
+test('las letras locales se muestran antes de consultar servicios externos', () => {
+  const localPriority = source.indexOf('const localText=String(t.lrc||t.embeddedLyrics||\'\').trim()');
+  const remoteSearch = source.indexOf('remote=await fetchSyncedLyrics(t,signal)');
+  assert.notEqual(localPriority, -1);
+  assert.notEqual(remoteSearch, -1);
+  assert.ok(localPriority < remoteSearch);
+  assert.doesNotMatch(source, /Lrclib-Client/);
+});
+
+test('la cola usa identificadores de canción estables en los botones', () => {
+  assert.match(source, /button\.dataset\.qplayid=t\.id/);
+  assert.match(source, /if\(b\.dataset\.qplayid\)\{playTrack\(b\.dataset\.qplayid\);return\}/);
+  assert.match(source, /list\.replaceChildren\(\)/);
+});
+
+test('la restauración de carpeta usa el permiso persistido y vuelve a solicitarlo con acción del usuario', () => {
+  assert.match(source, /indexedDB\.open\(FOLDER_DB,1\)/);
+  assert.match(source, /handle\.queryPermission\(\{mode:'read'\}\)/);
+  assert.match(source, /handle\.requestPermission\(\{mode:'read'\}\)/);
+  assert.match(source, /await saveFolderHandle\(handle\)/);
+});
+
 test('los controles de letras y cola tienen estado accesible y alternan sus paneles', () => {
   assert.match(html, /id="lyrics-toggle"[^>]*aria-expanded="false"/);
   assert.match(html, /id="queue-toggle"[^>]*aria-expanded="false"/);
