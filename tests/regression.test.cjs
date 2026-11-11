@@ -194,7 +194,11 @@ test('el guardado de carpeta verifica IndexedDB y solicita almacenamiento persis
   assert.match(source, /if\(!saved\)throw new Error/);
 });
 test('la restauración de carpeta usa el permiso persistido y vuelve a solicitarlo con acción del usuario', () => {
-  assert.match(source, /indexedDB\.open\(FOLDER_DB,1\)/);
+  assert.match(source, /indexedDB\.open\(FOLDER_DB,2\)/);
+  assert.match(source, /createObjectStore\('files'\)/);
+  assert.match(source, /cacheFolderFiles\(files,handle\.name\)/);
+  assert.match(source, /async function restoreCachedFolder\(\)/);
+  assert.match(source, /await importFiles\(files\)/);
   assert.match(source, /handle\.queryPermission\(\{mode:'read'\}\)/);
   assert.match(source, /handle\.requestPermission\(\{mode:'read'\}\)/);
   assert.match(source, /await saveFolderHandle\(handle\)/);
@@ -203,8 +207,12 @@ test('la restauración de carpeta usa el permiso persistido y vuelve a solicitar
 test('los controles de letras y cola tienen estado accesible y alternan sus paneles', () => {
   assert.match(html, /id="lyrics-toggle"[^>]*aria-expanded="false"/);
   assert.match(html, /id="queue-toggle"[^>]*aria-expanded="false"/);
-  assert.match(source, /\$\('#queue-toggle'\)\.setAttribute\('aria-expanded',String\(opening\)\)/);
+  assert.match(source, /button\?\.setAttribute\('aria-expanded',String\(opening\)\)/);
+  assert.match(source, /d\.style\.setProperty\('display','block','important'\)/);
+  assert.match(source, /d\.style\.setProperty\('pointer-events','auto','important'\)/);
+  assert.match(source, /\$\('#queue-toggle'\)\.addEventListener\('click'/);
   assert.match(source, /\$\('#lyrics-toggle'\)\.addEventListener\('click'/);
+  assert.match(source, /\$\$\('\[data-close\]'\)\.forEach/);
 });
 
 test('el volumen sigue siendo accesible en móvil mediante un control desplegable', () => {
