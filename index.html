@@ -1059,12 +1059,12 @@ button,input{font:inherit}
 }
 function setFloatingMode(mode){
  floatMode=mode;const panel=$('#floating-player');panel.dataset.mode=mode;
- $('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===mode)));
+ $$('[data-float-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.floatMode===mode)));
  syncFloatingPiP();
 }
 $('#float-toggle').addEventListener('click',openFloatingPiP);
 $('#float-close').addEventListener('click',()=>{$('#floating-player').hidden=true;$('#float-toggle').setAttribute('aria-pressed','false')});
-$('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
+$$('[data-float-mode]').forEach(b=>b.addEventListener('click',()=>setFloatingMode(b.dataset.floatMode)));
 $('#float-play').addEventListener('click',()=>$('#play').click());
 $('#float-prev').addEventListener('click',()=>$('#prev').click());
 $('#float-next').addEventListener('click',()=>$('#next').click());
