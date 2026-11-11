@@ -222,10 +222,10 @@ test('el volumen sigue siendo accesible en móvil mediante un control desplegabl
   assert.match(source, /audio\.volume=Number\(e\.target\.value\)/);
 });
 
+
 test('los controles del reproductor flotante usan querySelectorAll y no abortan la inicialización', () => {
   assert.equal((source.match(/\$\$\('\[data-float-mode\]'\)\.forEach/g) || []).length, 2);
-  assert.doesNotMatch(source, /(?<!\$)\$\('\[data-float-mode\]'\)\.forEach/);
-  const registration = source.indexOf("$('$queue-toggle')");
+  assert.doesNotMatch(source, /(^|[^$])\$\('\[data-float-mode\]'\)\.forEach/);
   assert.ok(source.includes("$('#queue-toggle').addEventListener('click'"));
   assert.ok(source.includes("$('#lyrics-toggle').addEventListener('click'"));
   assert.ok(source.includes('void restoreSavedFolder()'));
