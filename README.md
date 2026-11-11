@@ -2,7 +2,7 @@
 
 **Tu música. Tus reglas.** Reproductor web para una biblioteca de audio local, con interfaz minimalista inspirada en reproductores musicales oscuros, cola, aleatorio, repetición, favoritos y letras integradas o externas.
 
-**[Abrir Localify en GitHub Pages](https://ericsnet.github.io/Localify/)** · [Código fuente](https://github.com/ericsnet/Localify)
+**[Abrir Localify en GitHub Pages](https://ericsnet.github.io/Localify/)** · **[Abrir en Cloudflare Pages](https://localify.pages.dev/)** · [Código fuente](https://github.com/ericsnet/Localify)
 
 ## Funciones
 
