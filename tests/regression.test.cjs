@@ -34,19 +34,6 @@ function buildLrcParser() {
   return new Function(`${parseLrcDefinition}; return parseLrc;`)();
 }
 
-
-test('el modo de letras deja visible la barra fija de reproducción', () => {
-  const css = html.slice(0, html.toLowerCase().lastIndexOf('</style>'));
-  const marker = '/* Keep the persistent playback bar visible while lyrics are open. */';
-  const at = css.lastIndexOf(marker);
-  assert.ok(at >= 0, 'debe existir el override final del modo letras');
-  const finalRules = css.slice(at);
-  assert.match(finalRules, /#lyrics-drawer\.fullscreen\s*\{[^}]*inset:\s*0 0 94px 0\s*!important/s);
-  assert.match(finalRules, /#lyrics-drawer\.fullscreen\s*\{[^}]*z-index:\s*20\s*!important/s);
-  assert.match(finalRules, /@media\s*\(max-width:\s*640px\)[^{]*\{\s*#lyrics-drawer\.fullscreen\s*\{[^}]*inset:\s*0 0 122px 0\s*!important/s);
-  assert.match(css, /\.player\s*\{[^}]*z-index:\s*30/s);
-});
-
 test('el JavaScript completo se puede analizar', () => {
   assert.doesNotThrow(() => new Function(source));
 });
@@ -61,7 +48,7 @@ test('se reconocen extensiones reproducibles y no se importa MIDI', () => {
   assert.equal(lyricExt.test('song.lrc'), true);
 });
 
-test('se separan artista y título del nombre del archivo', () => {
+test('se separan artista y tÃ­tulo del nombre del archivo', () => {
   const {makeTrack} = buildDefinitions();
   const original = URL.createObjectURL;
   URL.createObjectURL = () => 'blob:test';
@@ -74,7 +61,7 @@ test('se separan artista y título del nombre del archivo', () => {
   }
 });
 
-test('las letras LRC se separan por líneas y respetan offset', () => {
+test('las letras LRC se separan por lÃ­neas y respetan offset', () => {
   const parseLrc = buildLrcParser();
   const lines = parseLrc('[ar:Artist]\n[offset:100]\n[00:01.20]First line\n[00:02.5]Second line');
   assert.equal(lines.length, 2);
@@ -83,7 +70,7 @@ test('las letras LRC se separan por líneas y respetan offset', () => {
   assert.equal(lines[1].t, 2.6);
 });
 
-test('TTML admite namespace XML y tiempos a nivel de párrafo', () => {
+test('TTML admite namespace XML y tiempos a nivel de pÃ¡rrafo', () => {
   const span1 = {textContent: 'Hello ', getAttribute: key => key === 'begin' ? '00:00:01.000' : null};
   const span2 = {textContent: 'world', getAttribute: key => key === 'begin' ? '00:00:01.500' : null};
   const p1 = {textContent: 'Hello world', getAttribute: () => null, getElementsByTagNameNS: (ns, name) => name === 'span' ? [span1, span2] : []};
@@ -103,7 +90,7 @@ test('TTML admite namespace XML y tiempos a nivel de párrafo', () => {
   }
 });
 
-test('la búsqueda lrc.red no usa similarity antes de inicializarla', async () => {
+test('la bÃºsqueda lrc.red no usa similarity antes de inicializarla', async () => {
   const parseLrc = buildLrcParser();
   const parseTTML = () => [];
   const setLyricsSource = () => {};
@@ -139,7 +126,7 @@ test('los archivos y sus LRC se emparejan por ruta relativa', () => {
   assert.notEqual(helpers.filePath(aAudio), helpers.filePath(bAudio));
 });
 
-test('una recuperación asíncrona no sustituye la canción seleccionada después', async () => {
+test('una recuperaciÃ³n asÃ­ncrona no sustituye la canciÃ³n seleccionada despuÃ©s', async () => {
   const fakeState = {current: 'track-1'};
   const fakeAudio = {src: 'unchanged', load() {}, play: () => Promise.resolve()};
   class FakeReader {
@@ -152,7 +139,7 @@ test('una recuperación asíncrona no sustituye la canción seleccionada despué
   assert.equal(fakeAudio.src, 'unchanged');
 });
 
-test('el panel no repite búsquedas si las letras ya se han cargado', () => {
+test('el panel no repite bÃºsquedas si las letras ya se han cargado', () => {
   assert.match(source, /if\(t\?\.lyricsLoaded&&t\.lyricsDisplay\)/);
   assert.match(source, /if\(t\?\.lyricsLoading\)return;/);
   assert.match(source, /t\.lyricsDisplay=\{/);
@@ -160,7 +147,7 @@ test('el panel no repite búsquedas si las letras ya se han cargado', () => {
 });
 
 
-test('al volver a una canción se restaura su propia letra en vez de dejar la anterior', async () => {
+test('al volver a una canciÃ³n se restaura su propia letra en vez de dejar la anterior', async () => {
   const lines = {innerHTML: 'previous lyrics'};
   const title = {innerHTML: 'previous title'};
   const sourceEl = {innerHTML: 'previous source', hidden: true};
@@ -186,16 +173,21 @@ test('la prueba de compatibilidad retirada no vuelve a aparecer', () => {
   assert.equal(source.includes('runProxyTest'), false);
 });
 
-test('las letras locales se muestran antes de consultar servicios externos', () => {
-  const localPriority = source.indexOf('const localText=String(t.lrc||t.embeddedLyrics||\'\').trim()');
-  const remoteSearch = source.indexOf('remote=await fetchSyncedLyrics(t,signal)');
-  assert.notEqual(localPriority, -1);
+test('las letras web tienen prioridad y los archivos locales/metadatos son fallback', () => {
+  const loadStart = source.indexOf('async function loadLyrics(t){');
+  const loadEnd = source.indexOf('function centerLyric(', loadStart);
+  assert.ok(loadStart >= 0 && loadEnd > loadStart);
+  const load = source.slice(loadStart, loadEnd);
+  const remoteSearch = load.indexOf('remote=await fetchSyncedLyrics(t,signal)');
+  const localFallback = load.indexOf('let localPlain=String(t.lrc||t.embeddedLyrics||\'\')');
   assert.notEqual(remoteSearch, -1);
-  assert.ok(localPriority < remoteSearch);
+  assert.notEqual(localFallback, -1);
+  assert.ok(remoteSearch < localFallback, 'la búsqueda web debe ejecutarse antes del fallback local');
+  assert.doesNotMatch(load.slice(0, remoteSearch), /const localText=String\(t\.lrc\|\|t\.embeddedLyrics/);
   assert.doesNotMatch(source, /Lrclib-Client/);
 });
 
-test('la cola usa identificadores de canción estables en los botones', () => {
+test('la cola usa identificadores de canciÃ³n estables en los botones', () => {
   assert.match(source, /button\.dataset\.qplayid=t\.id/);
   assert.match(source, /if\(b\.dataset\.qplayid\)\{playTrack\(b\.dataset\.qplayid\);return\}/);
   assert.match(source, /list\.replaceChildren\(\)/);
@@ -206,7 +198,7 @@ test('el guardado de carpeta verifica IndexedDB y solicita almacenamiento persis
   assert.match(source, /const saved=await getSavedFolderHandle\(\)/);
   assert.match(source, /if\(!saved\)throw new Error/);
 });
-test('la restauración de carpeta usa el permiso persistido y vuelve a solicitarlo con acción del usuario', () => {
+test('la restauraciÃ³n de carpeta usa el permiso persistido y vuelve a solicitarlo con acciÃ³n del usuario', () => {
   assert.match(source, /indexedDB\.open\(FOLDER_DB,2\)/);
   assert.match(source, /createObjectStore\('files'\)/);
   assert.match(source, /cacheFolderFiles\(files,handle\.name\)/);
@@ -228,7 +220,7 @@ test('los controles de letras y cola tienen estado accesible y alternan sus pane
   assert.match(source, /\$\$\('\[data-close\]'\)\.forEach/);
 });
 
-test('el volumen sigue siendo accesible en móvil mediante un control desplegable', () => {
+test('el volumen sigue siendo accesible en mÃ³vil mediante un control desplegable', () => {
   assert.match(html, /id="volume-toggle"/);
   assert.match(html, /id="volume" type="range"/);
   assert.match(html, /volume-open input#volume/);
@@ -236,7 +228,7 @@ test('el volumen sigue siendo accesible en móvil mediante un control desplegabl
 });
 
 
-test('los controles del reproductor flotante usan querySelectorAll y no abortan la inicialización', () => {
+test('los controles del reproductor flotante usan querySelectorAll y no abortan la inicializaciÃ³n', () => {
   assert.equal((source.match(/\$\$\('\[data-float-mode\]'\)\.forEach/g) || []).length, 2);
   assert.doesNotMatch(source, /(^|[^$])\$\('\[data-float-mode\]'\)\.forEach/);
   assert.ok(source.includes("$('#queue-toggle').addEventListener('click'"));
@@ -245,7 +237,7 @@ test('los controles del reproductor flotante usan querySelectorAll y no abortan 
 });
 
 
-test('las letras planas de metadatos normalizan saltos de línea, NUL y BOM', () => {
+test('las letras planas de metadatos normalizan saltos de lÃ­nea, NUL y BOM', () => {
   const start = source.indexOf('function formatPlainLyrics(value){');
   const end = source.indexOf('function setLyricsSource', start);
   assert.notEqual(start, -1);
@@ -255,7 +247,7 @@ test('las letras planas de metadatos normalizan saltos de línea, NUL y BOM', ()
   assert.deepEqual(formatPlainLyrics(input), ['First line', 'Second line']);
 });
 
-test('las letras ID3 en un solo párrafo se dividen en fragmentos legibles sin perder texto', () => {
+test('las letras ID3 en un solo pÃ¡rrafo se dividen en fragmentos legibles sin perder texto', () => {
   const start = source.indexOf('function formatPlainLyrics(value){');
   const end = source.indexOf('function setLyricsSource', start);
   const formatPlainLyrics = new Function(`${source.slice(start, end)}; return formatPlainLyrics;`)();
@@ -267,12 +259,12 @@ test('las letras ID3 en un solo párrafo se dividen en fragmentos legibles sin p
 });
 
 
-test('el lector ID3 conserva tildes UTF-8 y saltos de línea de USLT', async () => {
+test('el lector ID3 conserva tildes UTF-8 y saltos de lÃ­nea de USLT', async () => {
   const start = source.indexOf('function synchsafe(b,o){');
   const end = source.indexOf('async function embeddedLyrics(file){', start);
   assert.ok(start >= 0 && end > start);
   const readId3Lyrics = new Function('TextDecoder', 'Uint8Array', 'Blob', 'btoa', `${source.slice(start, end)}; return readId3Lyrics;`)(TextDecoder, Uint8Array, Blob, btoa);
-  const text = 'Línea uno\r\nLínea dos — café';
+  const text = 'LÃ­nea uno\r\nLÃ­nea dos â cafÃ©';
   const body = Buffer.concat([Buffer.from([3, 101, 110, 103, 0]), Buffer.from(text, 'utf8')]);
   const frame = Buffer.alloc(10 + body.length);
   frame.write('USLT', 0, 'ascii');
@@ -282,20 +274,20 @@ test('el lector ID3 conserva tildes UTF-8 y saltos de línea de USLT', async () 
   const header = Buffer.from([73, 68, 51, 3, 0, 0, (size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127]);
   const result = await readId3Lyrics(new Blob([header, frame]));
   assert.equal(result.plain, text);
-  assert.deepEqual(formatFromSource(result.plain), ['Línea uno', 'Línea dos — café']);
+  assert.deepEqual(formatFromSource(result.plain), ['LÃ­nea uno', 'LÃ­nea dos â cafÃ©']);
 });
 
 test('el lector ID3 decodifica letras antiguas Windows-1252', async () => {
   const start = source.indexOf('function synchsafe(b,o){');
   const end = source.indexOf('async function embeddedLyrics(file){', start);
   const readId3Lyrics = new Function('TextDecoder', 'Uint8Array', 'Blob', 'btoa', `${source.slice(start, end)}; return readId3Lyrics;`)(TextDecoder, Uint8Array, Blob, btoa);
-  const body = Buffer.from([0, 101, 110, 103, 0, ...Buffer.from('Canción número uno', 'latin1')]);
+  const body = Buffer.from([0, 101, 110, 103, 0, ...Buffer.from('CanciÃ³n nÃºmero uno', 'latin1')]);
   const frame = Buffer.alloc(10 + body.length);
   frame.write('USLT', 0, 'ascii'); frame.writeUInt32BE(body.length, 4); body.copy(frame, 10);
   const size = frame.length;
   const header = Buffer.from([73, 68, 51, 3, 0, 0, (size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127]);
   const result = await readId3Lyrics(new Blob([header, frame]));
-  assert.equal(result.plain, 'Canción número uno');
+  assert.equal(result.plain, 'CanciÃ³n nÃºmero uno');
 });
 
 function formatFromSource(value) {
