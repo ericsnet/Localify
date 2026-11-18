@@ -230,3 +230,63 @@ test('los controles del reproductor flotante usan querySelectorAll y no abortan 
   assert.ok(source.includes("$('#lyrics-toggle').addEventListener('click'"));
   assert.ok(source.includes('void restoreSavedFolder()'));
 });
+
+
+test('las letras planas de metadatos normalizan saltos de línea, NUL y BOM', () => {
+  const start = source.indexOf('function formatPlainLyrics(value){');
+  const end = source.indexOf('function setLyricsSource', start);
+  assert.notEqual(start, -1);
+  assert.ok(end > start);
+  const formatPlainLyrics = new Function(`${source.slice(start, end)}; return formatPlainLyrics;`)();
+  const input = String.fromCharCode(0xfeff) + 'First line' + String.fromCharCode(13, 10) + 'Second line' + String.fromCharCode(0);
+  assert.deepEqual(formatPlainLyrics(input), ['First line', 'Second line']);
+});
+
+test('las letras ID3 en un solo párrafo se dividen en fragmentos legibles sin perder texto', () => {
+  const start = source.indexOf('function formatPlainLyrics(value){');
+  const end = source.indexOf('function setLyricsSource', start);
+  const formatPlainLyrics = new Function(`${source.slice(start, end)}; return formatPlainLyrics;`)();
+  const input = 'You could never know what it is like Your blood like winter freezes just like ice And there is a cold lonely light that shines from you';
+  const lines = formatPlainLyrics(input);
+  assert.ok(lines.length > 1);
+  assert.equal(lines.join(' '), input);
+  assert.ok(lines.every(line => line.split(/\s+/).length <= 14));
+});
+
+
+test('el lector ID3 conserva tildes UTF-8 y saltos de línea de USLT', async () => {
+  const start = source.indexOf('function synchsafe(b,o){');
+  const end = source.indexOf('async function embeddedLyrics(file){', start);
+  assert.ok(start >= 0 && end > start);
+  const readId3Lyrics = new Function('TextDecoder', 'Uint8Array', 'Blob', 'btoa', `${source.slice(start, end)}; return readId3Lyrics;`)(TextDecoder, Uint8Array, Blob, btoa);
+  const text = 'Línea uno\r\nLínea dos — café';
+  const body = Buffer.concat([Buffer.from([3, 101, 110, 103, 0]), Buffer.from(text, 'utf8')]);
+  const frame = Buffer.alloc(10 + body.length);
+  frame.write('USLT', 0, 'ascii');
+  frame.writeUInt32BE(body.length, 4);
+  body.copy(frame, 10);
+  const size = frame.length;
+  const header = Buffer.from([73, 68, 51, 3, 0, 0, (size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127]);
+  const result = await readId3Lyrics(new Blob([header, frame]));
+  assert.equal(result.plain, text);
+  assert.deepEqual(formatFromSource(result.plain), ['Línea uno', 'Línea dos — café']);
+});
+
+test('el lector ID3 decodifica letras antiguas Windows-1252', async () => {
+  const start = source.indexOf('function synchsafe(b,o){');
+  const end = source.indexOf('async function embeddedLyrics(file){', start);
+  const readId3Lyrics = new Function('TextDecoder', 'Uint8Array', 'Blob', 'btoa', `${source.slice(start, end)}; return readId3Lyrics;`)(TextDecoder, Uint8Array, Blob, btoa);
+  const body = Buffer.from([0, 101, 110, 103, 0, ...Buffer.from('Canción número uno', 'latin1')]);
+  const frame = Buffer.alloc(10 + body.length);
+  frame.write('USLT', 0, 'ascii'); frame.writeUInt32BE(body.length, 4); body.copy(frame, 10);
+  const size = frame.length;
+  const header = Buffer.from([73, 68, 51, 3, 0, 0, (size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127]);
+  const result = await readId3Lyrics(new Blob([header, frame]));
+  assert.equal(result.plain, 'Canción número uno');
+});
+
+function formatFromSource(value) {
+  const start = source.indexOf('function formatPlainLyrics(value){');
+  const end = source.indexOf('function setLyricsSource', start);
+  return new Function(`${source.slice(start, end)}; return formatPlainLyrics;`)()(value);
+}

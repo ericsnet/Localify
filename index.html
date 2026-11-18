@@ -546,6 +546,20 @@ function parseTTML(ttml){
   return out.sort((a,b)=>a.t-b.t);
  }catch(e){console.warn('No se pudo interpretar TTML',e);return []}
 }
+function formatPlainLyrics(value){
+ const normalized=String(value??'').replace(/\u0000/g,'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').replace(/[\u2028\u2029]/g,'\n').trim();
+ if(!normalized)return[];
+ const sourceLines=normalized.split('\n').map(line=>line.trim()).filter(Boolean);
+ if(sourceLines.length>1)return sourceLines;
+ const sentences=normalized.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÜÑ¿¡"“])/u).map(line=>line.trim()).filter(Boolean);
+ const result=[];
+ for(const sentence of sentences){
+  const words=sentence.split(/\s+/);
+  if(words.length<=14){result.push(sentence);continue;}
+  for(let i=0;i<words.length;i+=10)result.push(words.slice(i,i+10).join(' '));
+ }
+ return result;
+}
 function setLyricsSource(name,state='searching'){
  const el=$('#lyrics-source');if(!el)return;
  const labels={searching:'Consultando',found:'Fuente utilizada',local:'Archivo local',error:'Error de conexión','not-found':'Sin resultados'};
@@ -738,7 +752,7 @@ async function loadLyrics(t){
    S.lyricIndex=-1;syncLyrics(true);updateFloatingLyrics();finish(true);return;
   }
   if(localText){
-   const textLines=localText.replace(/\\r/g,'').split('\\n').map(x=>x.trim()).filter(Boolean);
+   const textLines=formatPlainLyrics(localText);
    setLyricsSource(t.lrc?'Archivo .LRC':'Metadatos del archivo','local');
    $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');
    $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';
@@ -803,7 +817,7 @@ async function loadLyrics(t){
    $('#lyrics-lines').scrollTop=0;S.lyricIndex=-1;syncLyrics(true);updateFloatingLyrics();finish(true);return;
   }
   if(plain.trim()){
-   const textLines=plain.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);
+   const textLines=formatPlainLyrics(plain);
    if(t.remoteLyricsSource)setLyricsSource(t.remoteLyricsSource,'found');
    $('#lyrics-lines').innerHTML=textLines.map(txt=>'<div class="lyric">'+esc(txt)+'</div>').join('');updateFloatingLyrics();
    $('#lyrics-track').textContent=t.title+' · '+t.artist+' · letras sin sincronizar';finish(true);return;
