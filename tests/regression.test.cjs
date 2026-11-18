@@ -34,6 +34,19 @@ function buildLrcParser() {
   return new Function(`${parseLrcDefinition}; return parseLrc;`)();
 }
 
+
+test('el modo de letras deja visible la barra fija de reproducción', () => {
+  const css = html.slice(0, html.toLowerCase().lastIndexOf('</style>'));
+  const marker = '/* Keep the persistent playback bar visible while lyrics are open. */';
+  const at = css.lastIndexOf(marker);
+  assert.ok(at >= 0, 'debe existir el override final del modo letras');
+  const finalRules = css.slice(at);
+  assert.match(finalRules, /#lyrics-drawer\.fullscreen\s*\{[^}]*inset:\s*0 0 94px 0\s*!important/s);
+  assert.match(finalRules, /#lyrics-drawer\.fullscreen\s*\{[^}]*z-index:\s*20\s*!important/s);
+  assert.match(finalRules, /@media\s*\(max-width:\s*640px\)[^{]*\{\s*#lyrics-drawer\.fullscreen\s*\{[^}]*inset:\s*0 0 122px 0\s*!important/s);
+  assert.match(css, /\.player\s*\{[^}]*z-index:\s*30/s);
+});
+
 test('el JavaScript completo se puede analizar', () => {
   assert.doesNotThrow(() => new Function(source));
 });
