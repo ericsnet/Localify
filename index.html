@@ -975,35 +975,62 @@ function centerLyric(container,index,behavior='smooth'){
 function syncLyrics(force=false){
  if(!S.lyricsSynced||!S.lyrics.length)return;
  const now=Math.max(0,Number(audio.currentTime)||0);
+ // Binary search: select the latest lyric line whose timestamp has already passed.
  let low=0,high=S.lyrics.length-1,index=-1;
- while(low<=high){const mid=(low+high)>>1;if(S.lyrics[mid].t<=now){index=mid;low=mid+1}else high=mid-1}
+ while(low<=high){
+  const mid=(low+high)>>1;
+  if(S.lyrics[mid].t<=now){index=mid;low=mid+1}else high=mid-1;
+ }
  const previous=S.lyricIndex,changed=index!==previous;
  const container=$('#lyrics-lines');
  if(changed||force){
   if(previous>=0){
-   const oldLine=container?.children[previous];
-   if(oldLine){oldLine.classList.remove('active');oldLine.setAttribute('aria-current','false');}
+   const oldLine=container?.querySelector('[data-lyric="'+previous+'"]');
+   if(oldLine){
+    oldLine.classList.remove('active');
+    oldLine.setAttribute('aria-current','false');
+    oldLine.querySelectorAll('.active-word').forEach(word=>word.classList.remove('active-word'));
+   }
+   const floatingOld=$('#float-lyrics')?.querySelector('[data-lyric="'+previous+'"]');
+   floatingOld?.querySelectorAll('.active-word').forEach(word=>word.classList.remove('active-word'));
   }
   if(index>=0){
-   const activeLine=container?.children[index];
+   const activeLine=container?.querySelector('[data-lyric="'+index+'"]');
    if(activeLine){activeLine.classList.add('active');activeLine.setAttribute('aria-current','true');}
   }
   S.lyricIndex=index;
+  syncLyrics.lastWordIndex=-1;
+  syncLyrics.lastLineIndex=index;
  }
  if(index>=0){
-  const line=S.lyrics[index],activeLine=container?.children[index];
+  const line=S.lyrics[index],activeLine=container?.querySelector('[data-lyric="'+index+'"]');
   if(line?.words?.length&&activeLine){
-   let wi=-1,l=0,h=line.words.length-1;
-   while(l<=h){const m=(l+h)>>1;if(line.words[m].t<=now){wi=m;l=m+1}else h=m-1}
-   const previousWord=syncLyrics.lastWordIndex;
-   if(wi!==previousWord||changed||force){
-    if(previousWord>=0)activeLine.children[previousWord]?.classList.remove('active-word');
-    if(wi>=0)activeLine.children[wi]?.classList.add('active-word');
-    syncLyrics.lastWordIndex=wi;
-     const floatingLine=$('#float-lyrics')?.querySelector('[data-lyric="'+index+'"]');
-     if(floatingLine){floatingLine.querySelectorAll('.active-word').forEach(el=>el.classList.remove('active-word'));if(wi>=0)floatingLine.children[wi]?.classList.add('active-word');}
+   // Binary search word timestamps too; this also handles seeking backwards.
+   let l=0,h=line.words.length-1,wi=-1;
+   while(l<=h){
+    const m=(l+h)>>1;
+    if(line.words[m].t<=now){wi=m;l=m+1}else h=m-1;
    }
-  }else syncLyrics.lastWordIndex=-1;
+   if(wi!==syncLyrics.lastWordIndex||index!==syncLyrics.lastLineIndex||force){
+    activeLine.querySelectorAll('.active-word').forEach(word=>word.classList.remove('active-word'));
+    const word=wi>=0?activeLine.querySelector('[data-word="'+wi+'"]'):null;
+    word?.classList.add('active-word');
+    const floatingLine=$('#float-lyrics')?.querySelector('[data-lyric="'+index+'"]');
+    if(floatingLine){
+     floatingLine.querySelectorAll('.active-word').forEach(el=>el.classList.remove('active-word'));
+     floatingLine.querySelector('[data-word="'+wi+'"]')?.classList.add('active-word');
+    }
+    syncLyrics.lastWordIndex=wi;
+    syncLyrics.lastLineIndex=index;
+   }
+  }else{
+   activeLine?.querySelectorAll('.active-word').forEach(word=>word.classList.remove('active-word'));
+   syncLyrics.lastWordIndex=-1;
+   syncLyrics.lastLineIndex=index;
+  }
+ }else{
+  syncLyrics.lastWordIndex=-1;
+  syncLyrics.lastLineIndex=-1;
  }
  if(index>=0&&(changed||force)){
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -1011,6 +1038,7 @@ function syncLyrics(force=false){
   updateFloatingLyrics(true);
  }
 }
+
 syncLyrics.lastWordIndex=-1;
 function upcomingTracks(){const order=S.playOrder.length?S.playOrder:S.tracks.map(t=>t.id);const i=order.indexOf(S.current);return order.slice(i<0?0:i+1).map(track).filter(Boolean)}
 function renderQueue(){
