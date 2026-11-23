@@ -918,7 +918,7 @@ async function loadLyrics(t){
    // Prefer real word timestamps; estimate them when a provider only timestamps full lines.
    S.lyrics=normalizedLines.map((line,i)=>{
     if(line.words.length)return line;
-    const tokens=line.txt.match(/\\S+\\s*/g)||[line.txt],total=tokens.reduce((n,word)=>n+word.length,0);
+    const tokens=line.txt.match(/\S+\s*/g)||[line.txt],total=tokens.reduce((n,word)=>n+word.length,0);
     const next=normalizedLines[i+1]?.t;
     const span=Number.isFinite(next)?Math.max(1.6,Math.min(6,(next-line.t)*.88)):Math.max(2.4,Math.min(4.5,tokens.length*.34));
     let elapsed=0;
