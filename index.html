@@ -329,6 +329,23 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
  #lyrics-drawer.fullscreen .lyric.active{animation:none!important}
  #lyrics-drawer.fullscreen .lyric,#lyrics-drawer.fullscreen .lyrics-transport-top button{transition:none!important}
 }
+
+/* Karaoke word highlighting: keep the sentence dim and illuminate only the timed word. */
+#lyrics-drawer.fullscreen .lyric.active .lyric-word{
+ color:#777!important;
+ text-shadow:none!important;
+ font-weight:650;
+}
+#lyrics-drawer.fullscreen .lyric.active .lyric-word.active-word{
+ color:var(--accent,#d7ff65)!important;
+ text-shadow:0 0 9px color-mix(in srgb,var(--accent,#d7ff65) 38%,transparent),0 0 24px color-mix(in srgb,var(--accent,#d7ff65) 20%,transparent)!important;
+ font-weight:850;
+}
+#float-lyrics .lyric.active .lyric-word{color:#777!important;text-shadow:none!important}
+#float-lyrics .lyric.active .lyric-word.active-word{
+ color:var(--accent,#d7ff65)!important;
+ text-shadow:0 0 10px color-mix(in srgb,var(--accent,#d7ff65) 35%,transparent)!important;
+}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
