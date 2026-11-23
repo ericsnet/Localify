@@ -912,9 +912,19 @@ async function loadLyrics(t){
   }
   if(S.current!==t.id){finish(false);return;}
   if(lines.length){
-   S.lyrics=lines.map(line=>({t:Number(line.t),txt:String(line.txt||'').trim(),words:Array.isArray(line.words)?line.words.map(w=>({t:Number(w.t),txt:String(w.txt||'')})).filter(w=>Number.isFinite(w.t)&&w.txt.trim()).sort((a,b)=>a.t-b.t):[]}))
+   const normalizedLines=lines.map(line=>({t:Number(line.t),txt:String(line.txt||'').trim(),words:Array.isArray(line.words)?line.words.map(w=>({t:Number(w.t),txt:String(w.txt||'')})).filter(w=>Number.isFinite(w.t)&&w.txt.trim()).sort((a,b)=>a.t-b.t):[]}))
     .filter(line=>Number.isFinite(line.t)&&line.t>=0&&line.txt)
     .sort((a,b)=>a.t-b.t);
+   // Prefer real word timestamps; estimate them when a provider only timestamps full lines.
+   S.lyrics=normalizedLines.map((line,i)=>{
+    if(line.words.length)return line;
+    const tokens=line.txt.match(/\\S+\\s*/g)||[line.txt],total=tokens.reduce((n,word)=>n+word.length,0);
+    const next=normalizedLines[i+1]?.t;
+    const span=Number.isFinite(next)?Math.max(1.6,Math.min(6,(next-line.t)*.88)):Math.max(2.4,Math.min(4.5,tokens.length*.34));
+    let elapsed=0;
+    const words=tokens.map(txt=>{const t=line.t+(total?elapsed/total:0)*span;elapsed+=txt.length;return{t,txt};});
+    return{...line,words,estimatedWordTiming:true};
+   });
    S.lyricsSynced=S.lyrics.length>0;
   }
   if(S.lyricsSynced){
@@ -990,6 +1000,8 @@ function syncLyrics(force=false){
     if(previousWord>=0)activeLine.children[previousWord]?.classList.remove('active-word');
     if(wi>=0)activeLine.children[wi]?.classList.add('active-word');
     syncLyrics.lastWordIndex=wi;
+     const floatingLine=$('#float-lyrics')?.querySelector('[data-lyric="'+index+'"]');
+     if(floatingLine){floatingLine.querySelectorAll('.active-word').forEach(el=>el.classList.remove('active-word'));if(wi>=0)floatingLine.children[wi]?.classList.add('active-word');}
    }
   }else syncLyrics.lastWordIndex=-1;
  }
