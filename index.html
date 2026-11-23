@@ -6,6 +6,7 @@
 #lyrics-drawer[hidden]{display:none!important}
 #lyrics-drawer.fullscreen{position:fixed!important;inset:0!important;display:flex!important;visibility:visible;pointer-events:auto;z-index:9999!important;overflow:hidden}
 #lyrics-drawer.fullscreen .lyrics{width:100%;overscroll-behavior:contain;scroll-padding-block:42vh;scrollbar-gutter:stable}
+#lyrics-lines .lyric,#float-lyrics .lyric{cursor:pointer}#lyrics-lines .lyric:hover,#float-lyrics .lyric:hover{color:#fff}#lyrics-lines .lyric-word,#float-lyrics .lyric-word{cursor:pointer}
 #lyrics-drawer.fullscreen .lyric{flex:0 0 auto;width:min(100%,1000px);overflow-wrap:anywhere;padding-inline:8px}
 
 #lyrics-drawer.fullscreen .drawer-head{flex-shrink:0}
@@ -972,6 +973,20 @@ function centerLyric(container,index,behavior='smooth'){
  animation.frame=requestAnimationFrame(tick);
  lyricScrollAnimations.set(container,animation);
 }
+function seekToLyricElement(target){
+ const lyric=target?.closest?.('[data-lyric]');
+ if(!lyric)return;
+ const lineIndex=Number(lyric.dataset.lyric),wordEl=target.closest('[data-word]');
+ const line=S.lyrics[lineIndex];if(!line)return;
+ const wordIndex=wordEl?Number(wordEl.dataset.word):-1;
+ const timestamp=wordIndex>=0&&line.words?.[wordIndex]?line.words[wordIndex].t:line.t;
+ if(!Number.isFinite(timestamp))return;
+ const duration=Number.isFinite(audio.duration)&&audio.duration>0?audio.duration:Infinity;
+ audio.currentTime=Math.max(0,Math.min(timestamp,duration));
+ syncLyrics(true);updateFloatingLyrics(true);
+}
+$('#lyrics-lines').addEventListener('click',e=>seekToLyricElement(e.target));
+$('#float-lyrics').addEventListener('click',e=>seekToLyricElement(e.target));
 function syncLyrics(force=false){
  if(!S.lyricsSynced||!S.lyrics.length)return;
  const now=Math.max(0,Number(audio.currentTime)||0);
@@ -1240,6 +1255,7 @@ button,input{font:inherit}
   d.head.append(extra);
   const clone=$('#floating-player').cloneNode(true);clone.hidden=false;clone.style.cssText='position:static;width:100%;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;z-index:auto';
   d.body.append(clone);
+  clone.querySelector('#float-lyrics')?.addEventListener('click',e=>seekToLyricElement(e.target));
   clone.querySelector('#float-close').addEventListener('click',()=>w.close());
   clone.querySelector('#float-play').addEventListener('click',()=>$('#play').click());
   clone.querySelector('#float-prev').addEventListener('click',()=>$('#prev').click());
