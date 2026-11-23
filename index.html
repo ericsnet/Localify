@@ -276,6 +276,59 @@ body{background:#080808;color:#f1f1f1;letter-spacing:-.01em}
  #lyrics-drawer.fullscreen .lyrics-close{grid-column:2;grid-row:1}
  #lyrics-drawer.fullscreen .lyrics{padding:3vh 4px;gap:14px}
 }
+
+/* Lyrics: editorial typography, restrained motion and low-cost compositing. */
+#lyrics-drawer.fullscreen{
+ background:radial-gradient(ellipse at 50% 42%,#191919 0%,#0b0b0b 58%,#070707 100%);
+ animation:lyrics-panel-in .24s cubic-bezier(.2,.75,.25,1) both;
+}
+#lyrics-drawer.fullscreen.lyrics-closing{animation:lyrics-panel-out .17s cubic-bezier(.4,0,1,1) both;pointer-events:none}
+#lyrics-drawer.fullscreen .drawer-head{gap:18px}
+#lyrics-drawer.fullscreen #lyrics-track{
+ color:#858585;font-size:12px;letter-spacing:.025em;line-height:1.6;
+}
+#lyrics-drawer.fullscreen #lyrics-track a{color:#aaa;text-decoration-color:#555;text-underline-offset:3px}
+#lyrics-drawer.fullscreen .lyrics{
+ gap:clamp(22px,4.2vh,42px);padding:12vh 16px;
+ mask-image:linear-gradient(to bottom,transparent 0%,#000 13%,#000 87%,transparent 100%);
+}
+#lyrics-drawer.fullscreen .lyric{
+ width:min(100%,960px);padding:5px 12px;color:#666;
+ font-size:clamp(19px,2.6vw,34px);font-weight:650;line-height:1.42;
+ letter-spacing:-.035em;text-wrap:balance;overflow-wrap:anywhere;
+ opacity:.48;filter:blur(.15px);
+ transform:translate3d(0,0,0) scale(.985);
+ transition:color .32s ease,opacity .32s ease,transform .42s cubic-bezier(.2,.75,.25,1),filter .32s ease,text-shadow .32s ease;
+}
+#lyrics-drawer.fullscreen .lyric.active{
+ color:#f5f5f5;opacity:1;filter:none;
+ font-size:clamp(25px,3.8vw,48px);font-weight:780;line-height:1.25;
+ letter-spacing:-.045em;transform:translate3d(0,0,0) scale(1);
+ text-shadow:0 3px 35px #fff2;
+ animation:lyric-arrive .42s cubic-bezier(.16,1,.3,1) both;
+}
+#lyrics-drawer.fullscreen .lyric-word{transition:color .12s ease,text-shadow .12s ease}
+#lyrics-drawer.fullscreen .lyric.active .lyric-word.active-word{
+ color:#fff;text-shadow:0 0 22px #ffffff55;
+}
+#lyrics-drawer.fullscreen .lyrics-transport-top button{
+ transition:transform .18s ease,background .18s ease,color .18s ease,opacity .18s ease;
+}
+#lyrics-drawer.fullscreen .lyrics-transport-top button:hover{transform:translateY(-2px);background:#ffffff12}
+#lyrics-drawer.fullscreen .lyrics-transport-top #lyrics-play:hover{transform:scale(1.055);background:#fff}
+@keyframes lyrics-panel-in{from{opacity:0;transform:scale(1.012)}to{opacity:1;transform:scale(1)}}
+@keyframes lyrics-panel-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.992)}}
+@keyframes lyric-arrive{from{opacity:.45;transform:translate3d(0,13px,0) scale(.985);filter:blur(2px)}to{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}}
+@media(max-width:600px){
+ #lyrics-drawer.fullscreen .lyrics{gap:clamp(20px,3.5vh,30px);padding:8vh 4px;mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent)}
+ #lyrics-drawer.fullscreen .lyric{font-size:clamp(18px,5vw,25px);padding-inline:5px}
+ #lyrics-drawer.fullscreen .lyric.active{font-size:clamp(23px,6vw,32px)}
+}
+@media(prefers-reduced-motion:reduce){
+ #lyrics-drawer.fullscreen,#lyrics-drawer.fullscreen.lyrics-closing,
+ #lyrics-drawer.fullscreen .lyric.active{animation:none!important}
+ #lyrics-drawer.fullscreen .lyric,#lyrics-drawer.fullscreen .lyrics-transport-top button{transition:none!important}
+}
 </style></head><body>
 <div class="layout"><aside class="side"><div class="brand"><b>♫</b><span class="brand-name">localify</span><button id="sidebar-toggle" type="button" title="Contraer o expandir barra lateral" aria-label="Contraer o expandir barra lateral">‹</button></div><p class="eyebrow">TU ESPACIO</p><nav class="nav"><button class="active" data-view="home">⌂　Inicio</button><button data-view="library">▤　Tu biblioteca</button><button data-view="favorites">♡　Favoritos</button></nav><div class="bottom"><div class="local-note">● Tu música se queda aquí.<br>Sin cuenta. Sin streaming.</div><button class="full" id="side-import">＋ Añadir música</button></div></aside>
 <main class="main"><header class="top"><input class="search" id="search" type="search" placeholder="⌕  ¿Qué quieres escuchar?"><button class="btn" id="import-top">＋ Importar música</button></header><div class="page"><section class="hero"><div><p class="eyebrow accent">TU MÚSICA. TUS REGLAS.</p><h1>Todo lo que<br>te mueve<span class="accent">.</span></h1><p class="desc">Tu colección musical, organizada en un solo lugar. Sin algoritmos, sin suscripciones: solo tú y tu música.</p><button class="btn" id="hero-import">＋ Importar una carpeta</button><p class="muted small">Los archivos no se suben a internet.</p></div><div class="hero-art"><div class="disc"><div class="label">♫</div></div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
@@ -884,22 +937,39 @@ function syncLyrics(force=false){
  const now=Math.max(0,Number(audio.currentTime)||0);
  let low=0,high=S.lyrics.length-1,index=-1;
  while(low<=high){const mid=(low+high)>>1;if(S.lyrics[mid].t<=now){index=mid;low=mid+1}else high=mid-1}
- const changed=index!==S.lyricIndex;S.lyricIndex=index;
- document.querySelectorAll('.lyric[data-lyric]').forEach(el=>{
-  const lineIndex=Number(el.dataset.lyric),active=lineIndex===index,line=S.lyrics[lineIndex],wordEls=el.querySelectorAll('[data-word]');
-  el.classList.toggle('active',active);el.setAttribute('aria-current',active?'true':'false');
-  if(wordEls.length&&line?.words?.length){
+ const previous=S.lyricIndex,changed=index!==previous;
+ const container=$('#lyrics-lines');
+ if(changed||force){
+  if(previous>=0){
+   const oldLine=container?.children[previous];
+   if(oldLine){oldLine.classList.remove('active');oldLine.setAttribute('aria-current','false');}
+  }
+  if(index>=0){
+   const activeLine=container?.children[index];
+   if(activeLine){activeLine.classList.add('active');activeLine.setAttribute('aria-current','true');}
+  }
+  S.lyricIndex=index;
+ }
+ if(index>=0){
+  const line=S.lyrics[index],activeLine=container?.children[index];
+  if(line?.words?.length&&activeLine){
    let wi=-1,l=0,h=line.words.length-1;
    while(l<=h){const m=(l+h)>>1;if(line.words[m].t<=now){wi=m;l=m+1}else h=m-1}
-   wordEls.forEach((wordEl,j)=>wordEl.classList.toggle('active-word',active&&j===wi));
-  }
- });
+   const previousWord=syncLyrics.lastWordIndex;
+   if(wi!==previousWord||changed||force){
+    if(previousWord>=0)activeLine.children[previousWord]?.classList.remove('active-word');
+    if(wi>=0)activeLine.children[wi]?.classList.add('active-word');
+    syncLyrics.lastWordIndex=wi;
+   }
+  }else syncLyrics.lastWordIndex=-1;
+ }
  if(index>=0&&(changed||force)){
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  centerLyric($('#lyrics-lines'),index,reduce?'auto':'smooth');
+  centerLyric(container,index,reduce?'auto':'smooth');
   updateFloatingLyrics(true);
  }
 }
+syncLyrics.lastWordIndex=-1;
 function upcomingTracks(){const order=S.playOrder.length?S.playOrder:S.tracks.map(t=>t.id);const i=order.indexOf(S.current);return order.slice(i<0?0:i+1).map(track).filter(Boolean)}
 function renderQueue(){
  const list=$('#queue-list');if(!list)return;
@@ -1164,9 +1234,22 @@ function toggleLyricsDrawer(force){
    else lines.scrollTop=0;
   }));
  }else{
-  d.hidden=true;d.setAttribute('hidden','');d.classList.remove('fullscreen');
-  ['display','position','inset','width','height','max-height','z-index','visibility','overflow','pointer-events'].forEach(p=>d.style.removeProperty(p));
   button?.setAttribute('aria-expanded','false');
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
+   d.hidden=true;d.setAttribute('hidden','');d.classList.remove('fullscreen','lyrics-closing');
+   ['display','position','inset','width','height','max-height','z-index','visibility','overflow','pointer-events'].forEach(p=>d.style.removeProperty(p));
+  }else{
+   d.classList.remove('lyrics-closing');
+   void d.offsetWidth;
+   d.classList.add('lyrics-closing');
+   const finishClose=event=>{
+    if(event.target!==d||!d.classList.contains('lyrics-closing'))return;
+    d.removeEventListener('animationend',finishClose);
+    d.hidden=true;d.setAttribute('hidden','');d.classList.remove('fullscreen','lyrics-closing');
+    ['display','position','inset','width','height','max-height','z-index','visibility','overflow','pointer-events'].forEach(p=>d.style.removeProperty(p));
+   };
+   d.addEventListener('animationend',finishClose);
+  }
  }
 }
 $('#queue-toggle').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setQueueDrawerOpen($('#queue-drawer').hidden)});
