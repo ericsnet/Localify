@@ -34,6 +34,34 @@ function buildLrcParser() {
   return new Function(`${parseLrcDefinition}; return parseLrc;`)();
 }
 
+
+test('el aleatorio genera una permutación sin duplicados y no modifica la lista original', () => {
+  const helper = new Function('globalThis', 'Uint32Array', 'Math', `
+    function randomIndex(maxExclusive){
+      if(!Number.isSafeInteger(maxExclusive)||maxExclusive<1)throw new RangeError('maxExclusive debe ser un entero positivo');
+      const cryptoApi=globalThis.crypto;
+      if(cryptoApi?.getRandomValues){
+        const range=0x100000000,limit=Math.floor(range/maxExclusive)*maxExclusive,word=new Uint32Array(1);
+        let value;do{cryptoApi.getRandomValues(word);value=word[0]}while(value>=limit);
+        return value%maxExclusive;
+      }
+      return Math.floor(Math.random()*maxExclusive);
+    }
+    function shuffleIds(ids){
+      const shuffled=ids.slice();
+      for(let i=shuffled.length-1;i>0;i--){const j=randomIndex(i+1);[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]}
+      return shuffled;
+    }
+    return {randomIndex,shuffleIds};
+  `);
+  const values = [0, 1, 2, 3];
+  const {shuffleIds} = helper({crypto: {getRandomValues: array => { array[0] = 0; return array; }}}, Uint32Array, Math);
+  const shuffled = shuffleIds(values);
+  assert.deepEqual([...shuffled].sort(), values);
+  assert.deepEqual(values, [0, 1, 2, 3]);
+  assert.equal(new Set(shuffled).size, values.length);
+});
+
 test('el JavaScript completo se puede analizar', () => {
   assert.doesNotThrow(() => new Function(source));
 });
